@@ -6,9 +6,10 @@
 Maurilli, D. (2025). Tachistostory: Applicazione tachistoscopica per 
 il potenziamento delle abilità di lettura [Software]. 
 GitHub: https://github.com/danielemaurilli/tachistostory
+
 Licenza: Custom Non-Commercial Clinical License
-```-orange.svg)
-![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
+
+[Python](https://img.shields.io/badge/python-3.8+-blue.svg)
 
 > Applicazione tachistoscopica per il potenziamento delle abilità di lettura attraverso l'allenamento dei movimenti oculari saccadici
 
