@@ -22,5 +22,8 @@ MIN_HEIGHT = 400
 # Slider position constants (can be calculated dynamically)
 X_MIN = 100
 X_MAX = 500
+<<<<<<< HEAD
 
 INTRO_TABLE_DURATION = 2000
+=======
+>>>>>>> 1982162 (Initial commit)
