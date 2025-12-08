@@ -1,4 +1,4 @@
-name: Build & Release Tachistostory
+name: Build Tachistostory (.exe + .app)
 
 on:
   # Parte quando crei un tag tipo v0.9.0, v1.0.0, ecc.
