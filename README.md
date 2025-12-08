@@ -19,6 +19,30 @@ Licenza: Custom Non-Commercial Clinical License
 
 **Tachistostory** è uno strumento clinico-educativo innovativo progettato per il potenziamento delle abilità di lettura nei bambini attraverso la tecnica tachistoscopica. L'applicazione si basa su solidi principi neuroscientifici riguardanti i movimenti oculari saccadici durante la lettura.
 
+- Presentare parole o brevi stringhe per tempi molto brevi (100–250 ms) in posizioni controllate dello schermo allena i sistemi visivo–attentivi che supportano le saccadi e le fissazioni durante la lettura (Bakker & Vinke, 1985; Lorusso et al., 2005).  
+- Questo tipo di training, sia in formato clinico (VHSS, Tachidino) sia in formato ludico (Tachistoscopio), è associato a miglioramenti significativi della velocità e dell’accuratezza di lettura in bambini con dislessia e si mantiene nel tempo (Lorusso et al., 2022; Piazzalunga et al., 2023; McHolm, 2023).  
+- Nei soggetti con ADHD, modalità di lettura che riducano o eliminino i movimenti oculari (es. RSVP) migliorano la comprensione del testo rispetto alla lettura tradizionale, indicando che la presentazione rapida e centrata delle parole può compensare parte delle difficoltà attentive (Moussaoui et al., 2023), e che trattamenti tachistoscopici per la dislessia restano efficaci anche in presenza di ADHD (Lorusso et al., 2024).  
+
+Un’app come **Tachistostory**, che propone parole per brevissimi intervalli all’interno di una struttura di gioco/esercizio, si colloca quindi in una tradizione di interventi *evidence-based*: sfrutta gli stessi principi di presentazione tachistoscopica e di allenamento dell’elaborazione durante le fissazioni che sono stati documentati come utili per migliorare la fluenza di lettura nella dislessia e, potenzialmente, per supportare lettori con ADHD.
+
+---
+
+**Riferimenti**
+
+Bakker, D. J., & Vinke, J. (1985). Effects of hemisphere-specific stimulation on brain activity and reading in dyslexics. *Journal of Clinical and Experimental Neuropsychology, 7*(5), 505–525. https://doi.org/10.1080/01688638508401282  
+
+Lorusso, M. L., Facoetti, A., Toraldo, A., & Molteni, M. (2005). Tachistoscopic treatment of dyslexia changes the distribution of visual–spatial attention. *Brain and Cognition, 57*(2), 135–142. https://doi.org/10.1016/j.bandc.2004.08.057  
+
+Lorusso, M. L., Borasio, F., & Molteni, M. (2022). Remote neuropsychological intervention for developmental dyslexia with the Tachidino platform: No reduction in effectiveness for older nor for more severely impaired children. *Children, 9*(1), 71. https://doi.org/10.3390/children9010071  
+
+Lorusso, M. L., Borasio, F., Mistò, P., Salandi, A., Travellini, S., Lotito, M., & Molteni, M. (2024). Remote treatment of developmental dyslexia: How ADHD comorbidity, clinical history and treatment repetition may affect its efficacy. *Frontiers in Public Health, 11*, 1135465. https://doi.org/10.3389/fpubh.2023.1135465  
+
+McHolm, S. (2023). *Exploring brain stimulation methods to improve reading in children with dyslexia: A systematic review*. SAERA – School of Advanced Education, Research and Accreditation.  
+
+Moussaoui, S., Siddiqi, A., Cheung, T. C. K., & Niemeier, M. (2023). Reading without eye movements: Improving reading comprehension in young adults with Attention-Deficit/Hyperactivity Disorder (ADHD) [Preprint]. OSF. https://doi.org/10.31234/osf.io/3d4ea  
+
+Piazzalunga, C., Dui, L. G., Fontolan, S., Franceschini, S., Bortolozzo, M., Termine, C., & Ferrante, S. (2023). Evaluating the efficacy of a serious game in enhancing word reading speed. In *Proceedings of the 17th European Conference on Games Based Learning*. https://doi.org/10.34190/ecgbl.17.1.1661  
+
 ### Come Funziona
 
 Il tachistoscopio presenta parole singole per brevi periodi di tempo controllati, allenando il sistema visivo a processare l'informazione scritta in modo più efficiente. Il training segue un percorso graduale:
@@ -131,18 +155,6 @@ python main.py
 
 Durante la lettura fluente, gli occhi eseguono movimenti rapidi chiamati **saccadi** che durano circa **20-40 ms**, seguiti da fissazioni di **200-250 ms** durante le quali il cervello elabora l'informazione. Tachistostory allena questo processo naturale.
 
-### Progressione del Training
-
-```
-Settimana 1-2:  1200 ms → Familiarizzazione con lo strumento
-Settimana 3-4:  900 ms  → Prima riduzione significativa
-Settimana 5-6:  600 ms  → Avvicinamento al tempo naturale
-Settimana 7-8:  400 ms  → Affinamento delle abilità
-Settimana 9+:   250 ms  → Tempo target di lettura fluente
-```
-
-*Nota: I tempi sono indicativi e vanno adattati al singolo bambino*
-
 ### Componenti Cognitive Allenate
 
 1. **Elaborazione visiva rapida**: Riconoscimento immediato delle parole
@@ -160,7 +172,7 @@ Settimana 9+:   250 ms  → Tempo target di lettura fluente
 
 ### Protocollo
 1. **Warm-up** (5 min): Tempo di esposizione confortevole (es. 800 ms)
-2. **Training** (15 min): Tempo target della sessione
+2. **Training** (10 min): Tempo target della sessione
 3. **Cool-down** (5 min): Domande di comprensione e feedback
 4. **Registrazione**: Annotare tempo usato, numero di frasi, errori, fatica percepita
 
@@ -174,14 +186,6 @@ Per la frase: *"Il gatto dorme sul divano"*
 
 ## 🎨 Personalizzazione
 
-### Creazione di Materiali Personalizzati
-
-Il contenuto può essere adattato a:
-- **Livello di lettura** del bambino
-- **Interessi personali** (sport, animali, videogiochi)
-- **Obiettivi specifici** (vocaboli nuovi, strutture grammaticali)
-- **Tematiche curriculari** (per supporto scolastico)
-
 ### Suggerimenti per i Contenuti
 
 - Inizia con parole brevi (3-5 lettere)
@@ -190,13 +194,6 @@ Il contenuto può essere adattato a:
 - Aumenta gradualmente la complessità
 
 ## 📊 Monitoraggio dei Progressi
-
-### Indicatori da Registrare
-- Tempo di esposizione utilizzato
-- Numero di parole/frasi completate
-- Accuratezza nella ricostruzione delle frasi
-- Risposte corrette alle domande di comprensione
-- Livello di fatica percepita (scala 1-5)
 
 ### Criteri di Progressione
 Riduci il tempo di esposizione quando il bambino:
@@ -247,7 +244,7 @@ Leggi [CONTRIBUTING.md](CONTRIBUTING.md) per maggiori dettagli.
 
 ## 🐛 Segnalazione Bug
 
-Hai trovato un bug? [Apri una issue](https://github.com/[username]/tachistostory/issues) descrivendo:
+Hai trovato un bug? [Apri una issue](https://github.com/danielemaurilli/tachistostory/issues) descrivendo:
 - Cosa hai fatto
 - Cosa ti aspettavi
 - Cosa è successo invece
@@ -261,7 +258,7 @@ Se utilizzi Tachistostory in un contesto clinico o di ricerca, citalo come:
 ```
 Maurilli, D. (2025). Tachistostory: Applicazione tachistoscopica per il 
 potenziamento delle abilità di lettura [Software]. 
-GitHub: https://github.com/[username]/tachistostory
+GitHub: https://github.com/danielemaurilli/tachistostory
 Licenza: Custom Non-Commercial Clinical License
 ```
 
@@ -271,7 +268,7 @@ Licenza: Custom Non-Commercial Clinical License
   author = {Maurilli, Daniele},
   title = {Tachistostory: Applicazione tachistoscopica per il potenziamento delle abilità di lettura},
   year = {2025},
-  url = {https://github.com/[username]/tachistostory},
+  url = {https://github.com/danielemaurilli/tachistostory},
   note = {Licenza: Custom Non-Commercial Clinical License}
 }
 ```
@@ -300,25 +297,15 @@ Tachistostory è uno **strumento di supporto** clinico e non sostituisce una val
 
 L'utente è responsabile dell'uso appropriato del software e della conformità alle normative vigenti.
 
-## 🔮 Roadmap Futura
-
-- [ ] Sistema di tracciamento automatico dei progressi
-- [ ] Generazione di report per i genitori
-- [ ] Database di frasi pre-configurate per età/livello
-- [ ] Modalità multiplayer per competizione amichevole
-- [ ] Integrazione domande di comprensione nell'interfaccia
-- [ ] Supporto per immagini associate alle parole
-- [ ] Esportazione dati per analisi statistiche
-
 ## 📞 Supporto
 
-- 📖 [Wiki](https://github.com/[username]/tachistostory/wiki) (in sviluppo)
-- 💬 [Discussions](https://github.com/[username]/tachistostory/discussions)
-- 🐛 [Issues](https://github.com/[username]/tachistostory/issues)
+- 📖 [Wiki](https://github.com/danielemaurilli/tachistostory/wiki) (in sviluppo)
+- 💬 [Discussions](https://github.com/danielemaurilli/tachistostory/discussions)
+- 🐛 [Issues](https://github.com/danielemaurilli/tachistostory/issues)
 - 📧 Email: maurillidaniele@gmail.com
 
 ---
 
-**Sviluppato con ❤️ per supportare bambini con difficoltà di lettura**
+**Sviluppato con ❤️ **
 
 *Versione 0.9.0 - Dicembre 2025*
