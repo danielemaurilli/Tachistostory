@@ -29,13 +29,7 @@ jobs:
           pip install pyinstaller
 
       - name: Build .exe with PyInstaller
-        shell: cmd
-        run: |
-          pyinstaller ^
-            --onefile ^
-            --noconsole ^
-            --name Tachistostory ^
-            main.py
+        run: pyinstaller --onefile --noconsole --name Tachistostory main.py
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
@@ -63,12 +57,7 @@ jobs:
           pip install pyinstaller
 
       - name: Build .app with PyInstaller
-        run: |
-          pyinstaller \
-            --windowed \
-            --noconsole \
-            --name Tachistostory \
-            main.py
+        run: pyinstaller --windowed --noconsole --name Tachistostory main.py
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
