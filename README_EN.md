@@ -13,6 +13,30 @@
 
 **Tachistostory** is an innovative clinical-educational tool designed to enhance children's reading skills through tachistoscopic technique. The application is based on solid neuroscientific principles regarding saccadic eye movements during reading.
 
+- Presenting words or short strings for very brief intervals (100–250 ms) in controlled screen positions trains the visual-attentional systems that support saccades and fixations during reading (Bakker & Vinke, 1985; Lorusso et al., 2005).
+- This type of training, both in clinical format (VHSS, Tachidino) and in game format (Tachistoscope), is associated with significant improvements in reading speed and accuracy in children with dyslexia and is maintained over time (Lorusso et al., 2022; Piazzalunga et al., 2023; McHolm, 2023).
+- In individuals with ADHD, reading modalities that reduce or eliminate eye movements (e.g., RSVP) improve text comprehension compared to traditional reading, indicating that rapid and centered word presentation can compensate for part of the attentional difficulties (Moussaoui et al., 2023), and that tachistoscopic treatments for dyslexia remain effective even in the presence of ADHD (Lorusso et al., 2024).
+
+An app like **Tachistostory**, which presents words for very brief intervals within a game/exercise structure, is therefore part of a tradition of *evidence-based* interventions: it leverages the same principles of tachistoscopic presentation and training of processing during fixations that have been documented as useful for improving reading fluency in dyslexia and, potentially, for supporting readers with ADHD.
+
+---
+
+**References**
+
+Bakker, D. J., & Vinke, J. (1985). Effects of hemisphere-specific stimulation on brain activity and reading in dyslexics. *Journal of Clinical and Experimental Neuropsychology, 7*(5), 505–525. https://doi.org/10.1080/01688638508401282
+
+Lorusso, M. L., Facoetti, A., Toraldo, A., & Molteni, M. (2005). Tachistoscopic treatment of dyslexia changes the distribution of visual–spatial attention. *Brain and Cognition, 57*(2), 135–142. https://doi.org/10.1016/j.bandc.2004.08.057
+
+Lorusso, M. L., Borasio, F., & Molteni, M. (2022). Remote neuropsychological intervention for developmental dyslexia with the Tachidino platform: No reduction in effectiveness for older nor for more severely impaired children. *Children, 9*(1), 71. https://doi.org/10.3390/children9010071
+
+Lorusso, M. L., Borasio, F., Mistò, P., Salandi, A., Travellini, S., Lotito, M., & Molteni, M. (2024). Remote treatment of developmental dyslexia: How ADHD comorbidity, clinical history and treatment repetition may affect its efficacy. *Frontiers in Public Health, 11*, 1135465. https://doi.org/10.3389/fpubh.2023.1135465
+
+McHolm, S. (2023). *Exploring brain stimulation methods to improve reading in children with dyslexia: A systematic review*. SAERA – School of Advanced Education, Research and Accreditation.
+
+Moussaoui, S., Siddiqi, A., Cheung, T. C. K., & Niemeier, M. (2023). Reading without eye movements: Improving reading comprehension in young adults with Attention-Deficit/Hyperactivity Disorder (ADHD) [Preprint]. OSF. https://doi.org/10.31234/osf.io/3d4ea
+
+Piazzalunga, C., Dui, L. G., Fontolan, S., Franceschini, S., Bortolozzo, M., Termine, C., & Ferrante, S. (2023). Evaluating the efficacy of a serious game in enhancing word reading speed. In *Proceedings of the 17th European Conference on Games Based Learning*. https://doi.org/10.34190/ecgbl.17.1.1661
+
 ### How It Works
 
 The tachistoscope presents single words for brief, controlled periods of time, training the visual system to process written information more efficiently. The training follows a gradual path:
@@ -125,18 +149,6 @@ python main.py
 
 During fluent reading, eyes perform rapid movements called **saccades** lasting about **20-40 ms**, followed by fixations of **200-250 ms** during which the brain processes information. Tachistostory trains this natural process.
 
-### Training Progression
-
-```
-Week 1-2:  1200 ms → Tool familiarization
-Week 3-4:  900 ms  → First significant reduction
-Week 5-6:  600 ms  → Approaching natural time
-Week 7-8:  400 ms  → Skill refinement
-Week 9+:   250 ms  → Target time for fluent reading
-```
-
-*Note: Times are indicative and should be adapted to individual children*
-
 ### Trained Cognitive Components
 
 1. **Rapid visual processing**: Immediate word recognition
@@ -154,7 +166,7 @@ Week 9+:   250 ms  → Target time for fluent reading
 
 ### Protocol
 1. **Warm-up** (5 min): Comfortable exposure time (e.g., 800 ms)
-2. **Training** (15 min): Session target time
+2. **Training** (10 min): Session target time
 3. **Cool-down** (5 min): Comprehension questions and feedback
 4. **Recording**: Note time used, number of sentences, errors, perceived fatigue
 
@@ -168,14 +180,6 @@ For sentence: *"The cat sleeps on the sofa"*
 
 ## 🎨 Customization
 
-### Creating Custom Materials
-
-Content can be adapted to:
-- Child's **reading level**
-- **Personal interests** (sports, animals, video games)
-- **Specific goals** (new vocabulary, grammatical structures)
-- **Curricular themes** (for school support)
-
 ### Content Suggestions
 
 - Start with short words (3-5 letters)
@@ -184,13 +188,6 @@ Content can be adapted to:
 - Gradually increase complexity
 
 ## 📊 Progress Monitoring
-
-### Indicators to Record
-- Exposure time used
-- Number of words/sentences completed
-- Accuracy in sentence reconstruction
-- Correct answers to comprehension questions
-- Perceived fatigue level (scale 1-5)
 
 ### Progression Criteria
 Reduce exposure time when the child:
@@ -241,7 +238,7 @@ Read [CONTRIBUTING_EN.md](CONTRIBUTING_EN.md) for more details.
 
 ## 🐛 Bug Reporting
 
-Found a bug? [Open an issue](https://github.com/[username]/tachistostory/issues) describing:
+Found a bug? [Open an issue](https://github.com/danielemaurilli/tachistostory/issues) describing:
 - What you did
 - What you expected
 - What actually happened
@@ -265,7 +262,7 @@ License: Custom Non-Commercial Clinical License
   author = {Maurilli, Daniele},
   title = {Tachistostory: Tachistoscopic application for reading skills enhancement},
   year = {2025},
-  url = {https://github.com/[username]/tachistostory},
+  url = {https://github.com/danielemaurilli/tachistostory},
   note = {License: Custom Non-Commercial Clinical License}
 }
 ```
@@ -285,34 +282,24 @@ License: Custom Non-Commercial Clinical License
 
 ## ⚠️ Clinical Disclaimer
 
-Tachistostory is a clinical **support tool** and does not replace a comprehensive diagnostic evaluation or structured therapeutic intervention. It should be used:
+Tachistostory is a clinical **support tool** and does not replace a complete diagnostic assessment or structured therapeutic intervention. It must be used:
 
 - By qualified professionals (psychologists, speech therapists, therapists)
 - Within a broader therapeutic pathway
 - With direct supervision during use with children
-- In compliance with privacy regulations (GDPR) and professional codes of ethics
+- In compliance with privacy regulations (GDPR) and professional ethical codes
 
 The user is responsible for appropriate use of the software and compliance with applicable regulations.
 
-## 🔮 Future Roadmap
+##  Support
 
-- [ ] Automatic progress tracking system
-- [ ] Report generation for parents
-- [ ] Pre-configured sentence database by age/level
-- [ ] Multiplayer mode for friendly competition
-- [ ] Interface-integrated comprehension questions
-- [ ] Support for images associated with words
-- [ ] Data export for statistical analysis
-
-## 📞 Support
-
-- 📖 [Wiki](https://github.com/[username]/tachistostory/wiki) (in development)
-- 💬 [Discussions](https://github.com/[username]/tachistostory/discussions)
-- 🐛 [Issues](https://github.com/[username]/tachistostory/issues)
+- 📖 [Wiki](https://github.com/danielemaurilli/tachistostory/wiki) (in development)
+- 💬 [Discussions](https://github.com/danielemaurilli/tachistostory/discussions)
+- 🐛 [Issues](https://github.com/danielemaurilli/tachistostory/issues)
 - 📧 Email: maurillidaniele@gmail.com
 
 ---
 
-**Developed with ❤️ to support children with reading difficulties**
+**Developed with ❤️**
 
 *Version 0.9.0 - December 2025*
