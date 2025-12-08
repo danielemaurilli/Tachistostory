@@ -28,7 +28,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
-          
+
       - name: Build .exe with PyInstaller
         run: pyinstaller --onefile --noconsole --name Tachistostory --add-data "assets;assets" main.py
 
@@ -60,12 +60,14 @@ jobs:
       - name: Build .app with PyInstaller
         run: |
           pyinstaller --windowed --noconsole --name Tachistostory --add-data "assets:assets" main.py
+          cd dist
+          zip -r Tachistostory-macOS.zip Tachistostory.app
 
-      - name: Upload macOS artifact (tutta la dist)
+      - name: Upload macOS zip artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Tachistostory-macOS
-          path: dist
+          name: Tachistostory-macOS-zip
+          path: dist/Tachistostory-macOS.zip
 
   release:
     name: Create GitHub Release
@@ -73,47 +75,22 @@ jobs:
     needs: [build-windows, build-macos]
 
     steps:
-      - name: Prepare dist directory
-        run: mkdir -p dist
-
       - name: Download Windows artifact
         uses: actions/download-artifact@v4
         with:
           name: Tachistostory-Windows
-          path: dist/windows
+          path: dist
 
-      - name: Move Windows exe to dist root
-        run: |
-          ls -R
-          mv dist/windows/Tachistostory.exe dist/Tachistostory.exe
-
-      - name: Download macOS artifact
+      - name: Download macOS zip artifact
         uses: actions/download-artifact@v4
         with:
-          name: Tachistostory-macOS
-          path: dist/macos
+          name: Tachistostory-macOS-zip
+          path: dist
 
-      - name: Find and zip macOS .app
+      - name: List dist contents
         run: |
-          cd dist/macos
-          echo "Contenuto di dist/macos:"
-          ls -R
-
-          # Trova la prima cartella .app
-          APP_DIR=$(find . -maxdepth 3 -type d -name "*.app" | head -n 1)
-
-          if [ -z "$APP_DIR" ]; then
-            echo "Nessun bundle .app trovato"
-            exit 1
-          fi
-
-          echo "Trovata app bundle: $APP_DIR"
-          # Crea lo zip nella dist principale
-          zip -r ../Tachistostory-macOS.zip "$APP_DIR"
-
-          cd ..
-          echo "Contenuto finale di dist:"
-          ls -R
+          echo "Contenuto di dist:"
+          ls -R dist
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
