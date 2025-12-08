@@ -1,11 +1,9 @@
-name: Build Tachistostory (.exe + .app)
+name: Build & Release Tachistostory
 
 on:
-  # Parte quando crei un tag tipo v0.9.0, v1.0.0, ecc.
   push:
     tags:
       - "v*"
-  # E anche a mano dal tab "Actions" → "Run workflow"
   workflow_dispatch:
 
 jobs:
@@ -59,11 +57,11 @@ jobs:
       - name: Build .app with PyInstaller
         run: pyinstaller --windowed --noconsole --name Tachistostory main.py
 
-      - name: Upload macOS artifact
+      - name: Upload macOS artifact (tutta la dist)
         uses: actions/upload-artifact@v4
         with:
           name: Tachistostory-macOS
-          path: dist/Tachistostory.app
+          path: dist
 
   release:
     name: Create GitHub Release
@@ -71,22 +69,47 @@ jobs:
     needs: [build-windows, build-macos]
 
     steps:
+      - name: Prepare dist directory
+        run: mkdir -p dist
+
       - name: Download Windows artifact
         uses: actions/download-artifact@v4
         with:
           name: Tachistostory-Windows
-          path: dist
+          path: dist/windows
+
+      - name: Move Windows exe to dist root
+        run: |
+          ls -R
+          mv dist/windows/Tachistostory.exe dist/Tachistostory.exe
 
       - name: Download macOS artifact
         uses: actions/download-artifact@v4
         with:
           name: Tachistostory-macOS
-          path: dist
+          path: dist/macos
 
-      - name: Zip macOS .app
+      - name: Find and zip macOS .app
         run: |
-          cd dist
-          zip -r Tachistostory-macOS.zip Tachistostory.app
+          cd dist/macos
+          echo "Contenuto di dist/macos:"
+          ls -R
+
+          # Trova la prima cartella .app in profondità 2
+          APP_DIR=$(find . -maxdepth 2 -type d -name "*.app" | head -n 1)
+
+          if [ -z "$APP_DIR" ]; then
+            echo "Nessun bundle .app trovato"
+            exit 1
+          fi
+
+          echo "Trovata app bundle: $APP_DIR"
+          # Crea lo zip nella dist principale
+          zip -r ../Tachistostory-macOS.zip "$APP_DIR"
+
+          cd ..
+          echo "Contenuto finale di dist:"
+          ls -R
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
