@@ -58,6 +58,7 @@ class Tachistostory:
         # Logo
         self.logo_image = None
         self.larghezza_target = self.screen_width * 0.4
+        self.logo_icon = None
         
         # Instructions screen
         self.nome_file = None
@@ -113,11 +114,11 @@ class Tachistostory:
         self.base_font_pausa = 60
         
         # Initialize fonts
-        self.font_attes = pygame.font.SysFont('Calibri', self.base_font_attesa, bold=False, italic=True)
-        self.font_ms = pygame.font.SysFont('Calibri', self.base_font_ms, bold=False, italic=False)
-        self.font_istruzioni = pygame.font.SysFont('Calibri', self.base_font_istruzioni, bold=False, italic=False)
-        self.font_about = pygame.font.SysFont('Calibri', self.base_font_about, bold=False, italic=True)
-        self.font_pausa = pygame.font.SysFont('Calibri', self.base_font_pausa, True, False)
+        self.font_attes = pygame.font.SysFont('Helvetica', self.base_font_attesa, bold=False, italic=True)
+        self.font_ms = pygame.font.SysFont('Helvetica', self.base_font_ms, bold=False, italic=False)
+        self.font_istruzioni = pygame.font.SysFont('Helvetica', self.base_font_istruzioni, bold=False, italic=False)
+        self.font_about = pygame.font.SysFont('Helvetica', self.base_font_about, bold=False, italic=True)
+        self.font_pausa = pygame.font.SysFont('Helvetica', self.base_font_pausa, True, False)
 
         # Full-screen toggle
         self.full_screen = False
@@ -129,9 +130,12 @@ class Tachistostory:
     # WINDOW SETUP
     # ========================================================================
     
-    def display(self):
+    def get_screen(self):
         """Initialize and return the main display window."""
         self.screen = pygame.display.set_mode([self.screen_width, self.screen_height], RESIZABLE)
+        assets_logo_path = resource_path(os.path.join("assets", "Tachistostory.png"))
+        self.logo_icon = pygame.image.load(assets_logo_path).convert_alpha()
+        pygame.display.set_icon(self.logo_icon)
         return self.screen
     
     # ========================================================================
@@ -316,8 +320,8 @@ class Tachistostory:
         # Current fonts (scaled, not base)
         font_size = int(self.base_font * scale)
         font_ms_size = int(self.base_font_ms * scale)
-        self.font = pygame.font.SysFont('Calibri', font_size, bold=False, italic=False)
-        self.font_ms = pygame.font.SysFont('Calibri', font_ms_size, bold=False, italic=False)
+        self.font = pygame.font.SysFont('Helvetica', font_size, bold=False, italic=False)
+        self.font_ms = pygame.font.SysFont('Helvetica', font_ms_size, bold=False, italic=False)
 
         # Slider layout: 10% margin on sides, bar is 80% of screen width
         self.x_slider = int(self.screen_width * 0.1)
@@ -335,12 +339,12 @@ class Tachistostory:
         dim_about = int(self.base_font_about * scale)
         dim_pausa = int(self.base_font_pausa * scale)
 
-        self.font = pygame.font.SysFont('Calibri', dim_titolo, False, False)
-        self.font_ms = pygame.font.SysFont('Calibri', dim_ms, False, False)
-        self.font_attes = pygame.font.SysFont('Calibri', dim_attesa, False, False)
-        self.font_istruzioni = pygame.font.SysFont('Calibri', dim_istruzioni, False, False)
-        self.font_about = pygame.font.SysFont('Calibri', dim_about, False, True)
-        self.font_pausa = pygame.font.SysFont('Calibri', dim_pausa, True, False)
+        self.font = pygame.font.SysFont('Helvetica', dim_titolo, False, False)
+        self.font_ms = pygame.font.SysFont('Helvetica', dim_ms, False, False)
+        self.font_attes = pygame.font.SysFont('Helvetica', dim_attesa, False, False)
+        self.font_istruzioni = pygame.font.SysFont('Helvetica', dim_istruzioni, False, False)
+        self.font_about = pygame.font.SysFont('Helvetica', dim_about, False, True)
+        self.font_pausa = pygame.font.SysFont('Helvetica', dim_pausa, True, False)
 
     # ========================================================================
     # UI ELEMENTS
@@ -353,7 +357,7 @@ class Tachistostory:
     
     def get_font(self):
         """Initialize the main font at base size."""
-        self.font = pygame.font.SysFont('Calibri', self.base_font, bold=False, italic=False)
+        self.font = pygame.font.SysFont('Helvetica', self.base_font, bold=False, italic=False)
         return self.font
     
     def color(self):
