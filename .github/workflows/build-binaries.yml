@@ -81,7 +81,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: Tachistostory-macOS
-          path: dist/Tachistostory.app
+          path: dist
 
       - name: Zip macOS .app
         run: |
