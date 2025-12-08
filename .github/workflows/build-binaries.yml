@@ -1,4 +1,4 @@
-name: Build Tachistostory (.exe + .app)
+name: Build & Release Tachistostory
 
 on:
   # Parte quando crei un tag tipo v0.9.0, v1.0.0, ecc.
@@ -64,3 +64,39 @@ jobs:
         with:
           name: Tachistostory-macOS
           path: dist/Tachistostory.app
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [build-windows, build-macos]
+
+    steps:
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Tachistostory-Windows
+          path: dist
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Tachistostory-macOS
+          path: dist/Tachistostory.app
+
+      - name: Zip macOS .app
+        run: |
+          cd dist
+          zip -r Tachistostory-macOS.zip Tachistostory.app
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Tachistostory ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          files: |
+            dist/Tachistostory.exe
+            dist/Tachistostory-macOS.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
