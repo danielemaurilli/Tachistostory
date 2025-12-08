@@ -43,6 +43,11 @@ def resource_path(relative_path: str) -> str:
 
     return os.path.join(base_path, relative_path)
 
+def load_image_asset(relative_path: str) -> pygame.Surface:
+    """Load an image from assets using a PyInstaller-friendly path."""
+    return pygame.image.load(resource_path(relative_path)).convert_alpha()
+
+
 class Error(Enum):
     EMPTY = auto()
     EXCEPTION = auto()
@@ -158,8 +163,7 @@ class Tachistostory:
     def get_screen(self):
         """Initialize and return the main display window."""
         self.screen = pygame.display.set_mode([self.screen_width, self.screen_height], RESIZABLE)
-        assets_logo_path = resource_path(os.path.join("assets", "Tachistostory.png"))
-        self.logo_icon = pygame.image.load(assets_logo_path).convert_alpha()
+        self.logo_icon = load_image_asset(os.path.join("assets", "Tachistostory.png"))
         pygame.display.set_icon(self.logo_icon)
         return self.screen
     
@@ -519,8 +523,7 @@ class Tachistostory:
     
     def load_assets(self):
         """Load application assets (logo, icons, etc.)."""
-        assets_logo_path = resource_path(os.path.join("assets","Tachistostory_logo.png"))
-        self.logo_image = pygame.image.load(assets_logo_path).convert_alpha()
+        self.logo_image = load_image_asset(os.path.join("assets","Tachistostory_logo.png"))
 
     def disegna_schermata_attesa(self):
         """

@@ -28,9 +28,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
-
+          
       - name: Build .exe with PyInstaller
-        run: pyinstaller --onefile --noconsole --name Tachistostory main.py
+        run: pyinstaller --onefile --noconsole --name Tachistostory --add-data "assets;assets" main.py
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
@@ -58,7 +58,8 @@ jobs:
           pip install pyinstaller
 
       - name: Build .app with PyInstaller
-        run: pyinstaller --windowed --noconsole --name Tachistostory main.py
+        run: |
+          pyinstaller --windowed --noconsole --name Tachistostory --add-data "assets:assets" main.py
 
       - name: Upload macOS artifact (tutta la dist)
         uses: actions/upload-artifact@v4

@@ -19,6 +19,15 @@ from game import Tachistostory, Error, State
 # ============================================================================
 # GAME INITIALIZATION
 # ============================================================================
+
+def resource_path(relative_path: str) -> str:
+    """
+    Restituisce il path corretto sia in sviluppo che dentro l'eseguibile PyInstaller.
+    """
+    # Quando l'app è congelata, PyInstaller usa sys._MEIPASS
+    base_path = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base_path, relative_path)
+
 def main():
     app = Tachistostory()
     app.get_screen()
