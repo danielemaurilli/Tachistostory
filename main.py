@@ -14,7 +14,7 @@ import sys
 import os
 import traceback
 import settings
-from game import Tachistostory
+from game import Tachistostory, Error, State
 
 # ============================================================================
 # GAME INITIALIZATION
@@ -28,17 +28,52 @@ def main():
     app.disegna_schermata_attesa() 
     app.helper_slider(settings.DURATA_MIN, settings.DURATA_MAX)
     app.tempo_inizio_stato = pygame.time.get_ticks()
+    # Error renderers (avoid long if/elif chains)
+    error_renderers = {
+        Error.EMPTY: app.empty_message,
+        Error.EXCEPTION: lambda: app.error_message(app.messaggio_errore),
+        Error.INVALID: lambda: app.invalid_message(app.messaggio_errore),
+    }
+
+    state_renderers = {
+        State.FILE: app.disegna_schermata_attesa,
+        State.ISTRUCTION: app.disegna_schermata_istruzioni,
+        State.SHOW_WORD: lambda: app.scrivi_testo_centrato(app.parola_corrente),
+        State.SHOW_MASK: lambda: app.scrivi_testo_centrato(app.parola_mascherata),
+        State.END: lambda: app.scrivi_testo_centrato('End of list'),
+    }
+
+    def handle_show_word(elapsed_ms: int) -> None:
+        if elapsed_ms >= app.durata_parola_ms:
+            app.stato_presentazione = State.SHOW_MASK
+            app.tempo_inizio_stato = pygame.time.get_ticks()
+
+    def handle_show_mask(elapsed_ms: int) -> None:
+        if elapsed_ms >= app.durata_maschera_ms and app.avanti:
+            app.indice_parola += 1
+            if app.indice_parola < len(app.lista_parole):
+                app.parola_corrente = app.lista_parole[app.indice_parola]
+                app.parola_mascherata = app.maschera_parola(app.parola_corrente)
+                app.stato_presentazione = State.SHOW_WORD
+                app.tempo_inizio_stato = pygame.time.get_ticks()
+            else:
+                app.stato_presentazione = State.END
+
+    state_updaters = {
+        State.SHOW_WORD: handle_show_word,
+        State.SHOW_MASK: handle_show_mask,
+    }
+    
 
     # ============================================================================
     # MAIN GAME LOOP
     # ============================================================================
 
     running = True
+    clock = pygame.time.Clock()
 
     while running:
         try:
-            #Clock timing
-            clock = pygame.time.Clock()
             # Reset forward flag every frame
             app.avanti = False
 
@@ -62,15 +97,20 @@ def main():
                                 nome_path_completo = str(os.path.basename(file_low))
                                 app.nome_file = nome_path_completo.replace('.docx', '').replace('.doc', '')
                                 app.file_caricato = True
-                                app.stato_presentazione = 'istruzioni'
+                                app.stato_presentazione = State.ISTRUCTION
                                 app.num_parole = len(app.lista_parole)
                                 app.tempo_inizio_stato = pygame.time.get_ticks()
                                 app.get_full_screen()
                                 app.aggiorna_layout()  
                             else:
-                                print('Document not readable or empty. Please try again')
+                                app.mostra_errore = True
+                                app.tipo_errore = Error.EMPTY
+                                app.tempo_errore = pygame.time.get_ticks()
                         except Exception as e:
-                            print(f"An error occurred: {e}, please try again")
+                            app.mostra_errore = True
+                            app.tipo_errore = Error.EXCEPTION
+                            app.messaggio_errore = str(e)
+                            app.tempo_errore = pygame.time.get_ticks()
                             traceback.print_exc()
 
                     elif file_low.endswith('.txt'):
@@ -80,16 +120,26 @@ def main():
                                 nome_path_completo = str(os.path.basename(file_low))
                                 app.nome_file = nome_path_completo.replace('.txt', '')
                                 app.file_caricato = True
-                                app.stato_presentazione = 'istruzioni'
+                                app.stato_presentazione = State.ISTRUCTION
                                 app.num_parole = len(app.lista_parole)
                                 app.tempo_inizio_stato = pygame.time.get_ticks()
                                 app.get_full_screen()
-                                app.aggiorna_layout()  
+                                app.aggiorna_layout()
+                            else:
+                                app.mostra_errore = True
+                                app.tipo_errore = Error.EMPTY
+                                app.tempo_errore = pygame.time.get_ticks()
                         except Exception as e:
-                            print(f"An error occurred: {e}, please try again")
+                            app.mostra_errore = True
+                            app.tipo_errore = Error.EXCEPTION
+                            app.messaggio_errore = str(e)
+                            app.tempo_errore = pygame.time.get_ticks()
                             traceback.print_exc()
                     else:
-                        print(f'{file} is not valid. Please try again')
+                        app.mostra_errore = True
+                        app.tipo_errore = Error.INVALID
+                        app.messaggio_errore = os.path.basename(file_low)
+                        app.tempo_errore = pygame.time.get_ticks()
                 
                 # ================================================================
                 # KEYBOARD INPUT (only active after file is loaded)
@@ -106,20 +156,20 @@ def main():
                         app.indice_parola = 0
                         app.parola_corrente = app.lista_parole[0]
                         app.parola_mascherata = app.maschera_parola(app.parola_corrente)
-                        app.stato_presentazione = 'show_word'
+                        app.stato_presentazione = State.SHOW_WORD
                         app.tempo_inizio_stato = pygame.time.get_ticks()
                         app.in_pausa = False
                         app.avanti = False
                         app.aggiorna_layout()
                     if event.key == K_i:
                         app.iconifize()
-                    if event.key in (K_RETURN, K_KP_ENTER) and app.stato_presentazione == 'istruzioni':
-                        app.stato_presentazione = "show_word"
+                    if event.key in (K_RETURN, K_KP_ENTER) and app.stato_presentazione == State.ISTRUCTION:
+                        app.stato_presentazione = State.SHOW_WORD
                         app.tempo_inizio_stato = pygame.time.get_ticks()
                         app.in_pausa = False
                         app.avanti = False
                     # NOTE: F key works only OUTSIDE the instructions screen
-                    if event.key == K_f and app.stato_presentazione != 'istruzioni':
+                    if event.key == K_f and app.stato_presentazione != State.ISTRUCTION:
                         app.get_full_screen()
                         app.aggiorna_layout()
 
@@ -155,7 +205,7 @@ def main():
                 
                 if event.type == VIDEORESIZE:
                     # NOTE: Block resize in instructions screen
-                    if app.stato_presentazione == 'istruzioni':
+                    if app.stato_presentazione == State.ISTRUCTION:
                         continue
 
                     if event.w < settings.MIN_WIDTH:
@@ -168,13 +218,28 @@ def main():
                         app.screen_height = event.h
                     app.screen = pygame.display.set_mode((app.screen_width, app.screen_height), RESIZABLE)
                     app.aggiorna_layout()
-                    if app.stato_presentazione == 'attesa_file':
+                    if app.stato_presentazione == State.FILE:
                         app.disegna_schermata_attesa()
-                    if app.stato_presentazione == 'istruzioni':
+                    if app.stato_presentazione == State.ISTRUCTION:
                         app.disegna_schermata_istruzioni()
-                    if app.stato_presentazione in ('show_word', 'show_mask', 'fine'):
+                    if app.stato_presentazione in (State.SHOW_WORD, State.SHOW_MASK, State.END):
                         continue
                     app.updating()
+
+            # ====================================================================
+            # ERROR DISPLAY (if any error occurred)
+            # ====================================================================
+            if app.mostra_errore:
+                time_occurred = pygame.time.get_ticks() - app.tempo_errore
+                if time_occurred < 5000:
+                    renderer = error_renderers.get(app.tipo_errore)
+                    if renderer:
+                        renderer()
+                    app.updating()
+                    clock.tick(60)
+                    continue  # Skip normal rendering
+                else:
+                    app.mostra_errore = False
 
             # ====================================================================
             # GAME LOGIC & RENDERING
@@ -182,57 +247,44 @@ def main():
             
             # Waiting mode (no file loaded)
             if not app.file_caricato:
-                # WAITING SCREEN MODE
-                app.disegna_schermata_attesa()
+                state_renderers[State.FILE]()
                 app.updating()
+                clock.tick(60)
                 continue  
 
             # Instructions mode
-            if app.stato_presentazione == 'istruzioni':
-                app.disegna_schermata_istruzioni()
+            if app.stato_presentazione == State.ISTRUCTION:
+                state_renderers[State.ISTRUCTION]()
                 app.updating()
+                clock.tick(60)
                 continue  
 
             # Pause mode
             if app.in_pausa:
                 app.disegna_schermata_di_pausa()
                 app.updating()
+                clock.tick(60)
                 continue
 
             # PRESENTATION MODE (only if file loaded and not in instructions)
             if not app.in_pausa:
                 tempo_attuale = pygame.time.get_ticks()
                 tempo_trascorso = tempo_attuale - app.tempo_inizio_stato
-                
-                if app.stato_presentazione == 'show_word':
-                    if tempo_trascorso >= app.durata_parola_ms:
-                        app.stato_presentazione = 'show_mask'
-                        app.tempo_inizio_stato = pygame.time.get_ticks()
-
-                elif app.stato_presentazione == 'show_mask':
-                    if tempo_trascorso >= app.durata_maschera_ms and app.avanti:
-                        app.indice_parola += 1
-                        if app.indice_parola < len(app.lista_parole):
-                            app.parola_corrente = app.lista_parole[app.indice_parola]
-                            app.parola_mascherata = app.maschera_parola(app.parola_corrente)
-                            app.stato_presentazione = 'show_word'
-                            app.tempo_inizio_stato = pygame.time.get_ticks()
-                        else:
-                            app.stato_presentazione = 'fine'
+                updater = state_updaters.get(app.stato_presentazione)
+                if updater:
+                    updater(tempo_trascorso)
 
             # RENDERING (presentation mode)
             app.color()
             app.disegna_slider()
 
-            if app.stato_presentazione == 'show_word':
-                app.scrivi_testo_centrato(app.parola_corrente)
-            elif app.stato_presentazione == 'show_mask':
-                app.scrivi_testo_centrato(app.parola_mascherata)
-            elif app.stato_presentazione == 'fine':
-                app.scrivi_testo_centrato('End of list')
+            renderer = state_renderers.get(app.stato_presentazione)
+            if renderer:
+                renderer()
 
             app.pannello_informativo()
             app.updating()
+            clock.tick(60)
 
         except Exception as e:
             print(f"An error occurred: {e}")
@@ -246,4 +298,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

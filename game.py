@@ -4,11 +4,15 @@ Main tachistoscope application class with word presentation and display logic.
 """
 
 import pygame
-from pygame.locals import *
+import pygame
+from pygame.locals import (
+    RESIZABLE
+)
 import sys
 import os
 import docx2txt
 import settings 
+from enum import Enum, auto
 
 # Initialize Pygame BEFORE creating the class
 pygame.init()
@@ -39,6 +43,18 @@ def resource_path(relative_path: str) -> str:
 
     return os.path.join(base_path, relative_path)
 
+class Error(Enum):
+    EMPTY = auto()
+    EXCEPTION = auto()
+    INVALID = auto()
+
+
+class State(Enum):
+    FILE = auto()         # attesa_file
+    ISTRUCTION = auto()   # istruzioni
+    SHOW_WORD = auto()
+    SHOW_MASK = auto()
+    END = auto()          # fine
 
 class Tachistostory:
     """Main tachistoscope application class."""
@@ -54,6 +70,7 @@ class Tachistostory:
         # Color settings
         self.bg_color = (210, 245, 130)
         self.menu_bg_color = (0, 157, 198)
+        self.error_color = (200, 30, 30)
         
         # Logo
         self.logo_image = None
@@ -68,8 +85,7 @@ class Tachistostory:
         self.font = None
 
         # Presentation state
-        # Possible states: 'attesa_file', 'istruzioni', 'show_word', 'show_mask', 'fine'
-        self.stato_presentazione = 'attesa_file'
+        self.stato_presentazione = State.FILE
         
         # File loaded flag
         self.file_caricato = False
@@ -119,6 +135,15 @@ class Tachistostory:
         self.font_istruzioni = pygame.font.SysFont('Helvetica', self.base_font_istruzioni, bold=False, italic=False)
         self.font_about = pygame.font.SysFont('Helvetica', self.base_font_about, bold=False, italic=True)
         self.font_pausa = pygame.font.SysFont('Helvetica', self.base_font_pausa, True, False)
+
+        #Error message
+        self.error_text = None
+        self.invalid_text = None
+        self.empty_text = None
+        self.tempo_errore = 0
+        self.mostra_errore = False
+        self.tipo_errore = None
+        self.messaggio_errore = ""
 
         # Full-screen toggle
         self.full_screen = False
@@ -390,7 +415,7 @@ class Tachistostory:
         Shows current word position and total word count,
         or completion message when finished.
         """
-        if self.stato_presentazione != 'fine':
+        if self.stato_presentazione != State.END:
             self.indice_umano = self.indice_parola + 1
             self.totale = len(self.lista_parole)
             self.testo_pannello = self.font.render(f"Word {self.indice_umano}/{self.totale}", True, (39,39,39))
@@ -399,13 +424,43 @@ class Tachistostory:
                 bottom=self.screen_height - 20
             )
             self.screen.blit(self.testo_pannello, testo_rect)
-        elif self.stato_presentazione == 'fine':
+        elif self.stato_presentazione == State.END:
             self.testo_pannello = self.font.render(f"Parole terminate!", True, (39,39,39))
             testo_rect = self.testo_pannello.get_rect(
                 centerx=self.screen_width // 2,
                 bottom=self.screen_height - 20
             )
             self.screen.blit(self.testo_pannello, testo_rect)
+
+    def error_message(self,e):
+        win_w,win_h = self.screen.get_size()
+        self.mostra_errore = True
+        self.error_text = self.font_attes.render(f"An error occurred: {e}, please try again", True, self.error_color)
+        error_text_rect = self.error_text.get_rect(
+            centerx= win_w // 2,
+            bottom = self.screen_height - win_h // 3
+            )
+        self.screen.blit(self.error_text, error_text_rect)
+
+    def invalid_message(self,file):
+        win_w,win_h = self.screen.get_size()
+        self.mostra_errore = True
+        self.invalid_text = self.font_attes.render(f'{file} is not valid. Please try again', True, self.error_color)
+        invalid_text_rect = self.invalid_text.get_rect(
+            centerx= win_w // 2,
+            bottom = self.screen_height - win_h // 3
+            )
+        self.screen.blit(self.invalid_text, invalid_text_rect)
+
+    def empty_message(self):
+        win_w,win_h = self.screen.get_size()
+        self.mostra_errore = True
+        self.empty_text = self.font_attes.render('Document not readable or empty. Please try again', True, self.error_color)
+        empty_text_rect = self.empty_text.get_rect(
+            centerx= win_w // 2,
+            bottom = self.screen_height - win_h // 3
+            )
+        self.screen.blit(self.empty_text, empty_text_rect)
 
     # ========================================================================
     # SLIDER
