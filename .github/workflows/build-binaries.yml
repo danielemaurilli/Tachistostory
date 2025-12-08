@@ -1,5 +1,8 @@
 name: Build & Release Tachistostory
 
+permissions:
+  contents: write
+
 on:
   push:
     tags:
@@ -95,8 +98,8 @@ jobs:
           echo "Contenuto di dist/macos:"
           ls -R
 
-          # Trova la prima cartella .app in profondità 2
-          APP_DIR=$(find . -maxdepth 2 -type d -name "*.app" | head -n 1)
+          # Trova la prima cartella .app
+          APP_DIR=$(find . -maxdepth 3 -type d -name "*.app" | head -n 1)
 
           if [ -z "$APP_DIR" ]; then
             echo "Nessun bundle .app trovato"
