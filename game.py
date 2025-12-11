@@ -4,15 +4,13 @@ Main tachistoscope application class with word presentation and display logic.
 """
 
 import pygame
-import pygame
-from pygame.locals import (
-    RESIZABLE
-)
+from pygame.locals import RESIZABLE
 import sys
 import os
 import docx2txt
 import settings 
 from enum import Enum, auto
+from typing import List, Optional, Tuple
 
 # Initialize Pygame BEFORE creating the class
 pygame.init()
@@ -22,6 +20,14 @@ pygame.font.init()
 _SCREEN_INFO = pygame.display.Info()
 SCREEN_MAX_W = _SCREEN_INFO.current_w
 SCREEN_MAX_H = _SCREEN_INFO.current_h
+
+# Layout constants
+LOGO_WIDTH_RATIO = 0.4
+SLIDER_MARGIN_RATIO = 0.1
+SLIDER_WIDTH_RATIO = 0.8
+FULLSCREEN_MENUBAR_MARGIN = 50
+PUNCTUATION_CHARS = ',.:;?!-_"\''
+KEPT_PUNCTUATION = ':.,;,!?'
 
 
 def resource_path(relative_path: str) -> str:
@@ -43,30 +49,27 @@ def resource_path(relative_path: str) -> str:
 
     return os.path.join(base_path, relative_path)
 
+
 def load_image_asset(relative_path: str) -> pygame.Surface:
     """Load an image from assets using a PyInstaller-friendly path."""
     return pygame.image.load(resource_path(relative_path)).convert_alpha()
 
 
-class Error(Enum):
-    EMPTY = auto()
-    EXCEPTION = auto()
-    INVALID = auto()
-
-
 class State(Enum):
-    FILE = auto()         # attesa_file
-    ISTRUCTION = auto()   # istruzioni
-    SHOW_WORD = auto()
-    SHOW_MASK = auto()
-    END = auto()          # fine
+    """Application states for the tachistoscope."""
+    FILE = auto()         # Waiting for file
+    ISTRUCTION = auto()   # Instructions screen
+    SHOW_WORD = auto()    # Displaying word
+    SHOW_MASK = auto()    # Displaying mask
+    END = auto()          # Presentation finished
+
 
 class Tachistostory:
     """Main tachistoscope application class."""
     
     def __init__(self):
         # Screen setup
-        self.screen = None
+        self.screen: Optional[pygame.Surface] = None
         self.base_width = 600
         self.base_height = 800
         self.screen_width = self.base_width
@@ -78,31 +81,30 @@ class Tachistostory:
         self.error_color = (200, 30, 30)
         
         # Logo
-        self.logo_image = None
-        self.larghezza_target = self.screen_width * 0.4
-        self.logo_icon = None
+        self.logo_image: Optional[pygame.Surface] = None
+        self.logo_icon: Optional[pygame.Surface] = None
         
         # Instructions screen
-        self.nome_file = None
-        self.num_parole = None
+        self.nome_file: Optional[str] = None
+        self.num_parole: Optional[int] = None
 
         # Base font
-        self.font = None
+        self.font: Optional[pygame.font.Font] = None
 
         # Presentation state
         self.stato_presentazione = State.FILE
         
         # File loaded flag
         self.file_caricato = False
-        self.percorso_file = None
+        self.percorso_file: Optional[str] = None
 
         # Word presentation duration
-        self.tempo_inizio_stato = None
+        self.tempo_inizio_stato: Optional[int] = None
         self.durata_parola_ms = 220
         self.durata_maschera_ms = 400
         
         # Word list initialization
-        self.lista_parole = []
+        self.lista_parole: List[str] = []
         self.indice_parola = 0
         self.parola_corrente = ""
         self.parola_mascherata = ""
@@ -141,26 +143,25 @@ class Tachistostory:
         self.font_about = pygame.font.SysFont('Helvetica', self.base_font_about, bold=False, italic=True)
         self.font_pausa = pygame.font.SysFont('Helvetica', self.base_font_pausa, True, False)
 
-        #Error message
-        self.error_text = None
-        self.invalid_text = None
-        self.empty_text = None
+        # Error message
+        self.error_text: Optional[pygame.Surface] = None
+        self.invalid_text: Optional[pygame.Surface] = None
+        self.empty_text: Optional[pygame.Surface] = None
         self.tempo_errore = 0
         self.mostra_errore = False
-        self.tipo_errore = None
         self.messaggio_errore = ""
 
         # Full-screen toggle
         self.full_screen = False
 
         # Layout size tracking
-        self.last_layout_size = (self.screen_width, self.screen_height)
+        self.last_layout_size: Tuple[int, int] = (self.screen_width, self.screen_height)
 
     # ========================================================================
     # WINDOW SETUP
     # ========================================================================
     
-    def get_screen(self):
+    def get_screen(self) -> pygame.Surface:
         """Initialize and return the main display window."""
         self.screen = pygame.display.set_mode([self.screen_width, self.screen_height], RESIZABLE)
         self.logo_icon = load_image_asset(os.path.join("assets", "Tachistostory.png"))
@@ -171,7 +172,7 @@ class Tachistostory:
     # WORD MASKING
     # ========================================================================
     
-    def maschera_parola(self, parola):
+    def maschera_parola(self, parola: str) -> str:
         """
         Mask a word by replacing letters and digits with '#'.
         
@@ -181,25 +182,43 @@ class Tachistostory:
         Returns:
             Masked string with '#' replacing alphanumeric characters
         """
-        nuova_parola = []
-        for lettera in parola:
-            if lettera.isalpha() or lettera.isdigit():
-                nuova_parola.append("#")
-            elif lettera == " ":
-                nuova_parola.append(" ")
-            elif lettera in [":",".",";",",",'!','?']:
-                nuova_parola.append(lettera)
+        masked_chars = []
+        for char in parola:
+            if char in KEPT_PUNCTUATION or char == " ":
+                masked_chars.append(char)
+            elif char.isalnum():
+                masked_chars.append("#")
             else:
-                nuova_parola.append("#")
-        stringa = ""
-        stringa_mascherata = stringa.join(nuova_parola)
-        return stringa_mascherata
+                masked_chars.append("#")
+        return "".join(masked_chars)
 
     # ========================================================================
     # FILE LOADING
     # ========================================================================
     
-    def carica_parola_da_txt(self, nome_file):
+    def _pulisci_e_carica_parole(self, testo: str) -> List[str]:
+        """
+        Extract and clean words from text content.
+        
+        Args:
+            testo: Raw text content
+            
+        Returns:
+            List of cleaned words
+        """
+        lista_parole = []
+        for riga in testo.splitlines():
+            riga_pulita = riga.strip()
+            if riga_pulita:
+                parole_nella_riga = riga_pulita.split()
+                for parola in parole_nella_riga:
+                    # Remove punctuation and digits from word edges
+                    parola_pulita = parola.strip(PUNCTUATION_CHARS + '1234567890')
+                    if parola_pulita:
+                        lista_parole.append(parola_pulita)
+        return lista_parole
+    
+    def carica_parola_da_txt(self, nome_file: str) -> List[str]:
         """
         Load words from a plain text file.
         
@@ -213,80 +232,63 @@ class Tachistostory:
             ValueError: If the file is empty
             FileNotFoundError: If the file doesn't exist
         """
-        if os.path.exists(nome_file):
-            with open(nome_file, 'r', encoding='utf-8') as file:
-                lista_parole = []
-                caratteri_da_rimuovere = ',.:;?!-_"\'1234567890'
-                for riga in file:
-                    riga_pulita = riga.strip()
-                    if riga_pulita:
-                        # Split line into individual words
-                        parole_nella_riga = riga_pulita.split()
-                        for parola in parole_nella_riga:
-                            # Remove punctuation from each word
-                            parola_pulita = parola.strip(caratteri_da_rimuovere)
-                            if parola_pulita:  # Only add if not empty
-                                lista_parole.append(parola_pulita)
-            self.lista_parole = lista_parole
-            if lista_parole:
-                self.indice_parola = 0
-                self.parola_corrente = self.lista_parole[0]
-                self.parola_mascherata = self.maschera_parola(self.parola_corrente)
-            else:
-                raise ValueError("Il file è vuoto")
-            return lista_parole
-        raise FileNotFoundError(f"File not found: {nome_file}")
+        if not os.path.exists(nome_file):
+            raise FileNotFoundError(f"File not found: {nome_file}")
+            
+        with open(nome_file, 'r', encoding='utf-8') as file:
+            testo = file.read()
+        
+        lista_parole = self._pulisci_e_carica_parole(testo)
+        
+        if not lista_parole:
+            raise ValueError("Il file è vuoto")
+        
+        self.lista_parole = lista_parole
+        self.indice_parola = 0
+        self.parola_corrente = self.lista_parole[0]
+        self.parola_mascherata = self.maschera_parola(self.parola_corrente)
+        
+        return lista_parole
 
-    def carica_parola_da_word(self, testo):
+    def carica_parola_da_word(self, percorso: str) -> List[str]:
         """
         Load words from a Microsoft Word document (.doc or .docx).
         
         Args:
-            testo: Path to the Word document
+            percorso: Path to the Word document
             
         Returns:
-            List of cleaned words, or None if empty
+            List of cleaned words
             
         Raises:
             FileNotFoundError: If the file doesn't exist
+            ValueError: If the document is empty
         """
-        if os.path.exists(testo):
-            self.testo = docx2txt.process(testo)
-
-            # Convert to word list using same logic as txt file loader
-            lista_parole = []
-            caratteri_da_rimuovere = ',.:;?!-_"\'1234567890'
-            for riga in self.testo.splitlines():
-                riga_pulita = riga.strip()
-                if riga_pulita:
-                    parole_nella_riga = riga_pulita.split()
-                    for parola in parole_nella_riga:
-                        parola_pulita = parola.strip(caratteri_da_rimuovere)
-                        if parola_pulita:
-                            lista_parole.append(parola_pulita)
-
-            if lista_parole:
-                self.lista_parole = lista_parole
-                self.indice_parola = 0
-                self.parola_corrente = self.lista_parole[0]
-                self.parola_mascherata = self.maschera_parola(self.parola_corrente)
-                return lista_parole  
-            else:
-                print("Word document appears to be empty after conversion.")
-                return None  
-        else:
-            raise FileNotFoundError(f"File not found: {testo}")
+        if not os.path.exists(percorso):
+            raise FileNotFoundError(f"File not found: {percorso}")
+        
+        testo = docx2txt.process(percorso)
+        lista_parole = self._pulisci_e_carica_parole(testo)
+        
+        if not lista_parole:
+            raise ValueError("Word document appears to be empty after conversion.")
+        
+        self.lista_parole = lista_parole
+        self.indice_parola = 0
+        self.parola_corrente = self.lista_parole[0]
+        self.parola_mascherata = self.maschera_parola(self.parola_corrente)
+        
+        return lista_parole
 
     # ========================================================================
     # SCREEN FUNCTIONS
     # ========================================================================
     
-    def iconifize(self):
+    def iconifize(self) -> None:
         """Minimize the window (iconify)."""
-        self.iconify = pygame.display.iconify()
-        return self.iconify
+        pygame.display.iconify()
 
-    def get_full_screen(self):
+    def get_full_screen(self) -> None:
         """
         Toggle between normal window and maximized window.
         
@@ -295,7 +297,7 @@ class Tachistostory:
         if not self.full_screen:
             # Use global constants defined at module startup
             self.screen_width = SCREEN_MAX_W
-            self.screen_height = SCREEN_MAX_H - 50  # Margin for menu bar
+            self.screen_height = SCREEN_MAX_H - FULLSCREEN_MENUBAR_MARGIN
             
             self.screen = pygame.display.set_mode(
                 (self.screen_width, self.screen_height),
@@ -315,28 +317,32 @@ class Tachistostory:
         # Note: Don't call aggiorna_layout here to avoid duplicate calls
         # It will be called explicitly after this function
 
-    def assicura_layout_size(self):
+    def assicura_layout_size(self) -> None:
         """
         Ensure layout is updated when window size changes.
         
         Checks if window size has changed and triggers layout update if needed.
         """
+        if self.screen is None:
+            return
+            
         win_w, win_h = self.screen.get_size()
-        if (win_w, win_h) == self.last_layout_size:
-            pass
-        else:
+        if (win_w, win_h) != self.last_layout_size:
             self.screen_width = win_w
             self.screen_height = win_h
             self.aggiorna_layout()
             self.last_layout_size = (win_w, win_h)
 
-    def aggiorna_layout(self):
+    def aggiorna_layout(self) -> None:
         """
         Update UI layout based on current window size.
         
         Recalculates font sizes, slider positions, and other UI elements
         to scale proportionally with window size.
         """
+        if self.screen is None:
+            return
+            
         new_w, new_h = self.screen.get_size()
         self.screen_width = new_w
         self.screen_height = new_h
@@ -346,162 +352,207 @@ class Tachistostory:
             new_h / self.base_height
         )
 
-        # Current fonts (scaled, not base)
+        self._aggiorna_fonts(scale)
+        self._aggiorna_slider_layout(scale)
+
+    def _aggiorna_fonts(self, scale: float) -> None:
+        """Update font sizes based on scale factor."""
+        # Main fonts
         font_size = int(self.base_font * scale)
         font_ms_size = int(self.base_font_ms * scale)
         self.font = pygame.font.SysFont('Helvetica', font_size, bold=False, italic=False)
         self.font_ms = pygame.font.SysFont('Helvetica', font_ms_size, bold=False, italic=False)
 
-        # Slider layout: 10% margin on sides, bar is 80% of screen width
-        self.x_slider = int(self.screen_width * 0.1)
-        self.slider_width = int(self.screen_width * 0.8)
-        self.y_slider = int(self.screen_height * 0.1)
-        # Knob radius (scaled)
-        self.pomello_radius = int(12 * scale)
-        self.helper_slider(settings.DURATA_MIN, settings.DURATA_MAX)
-
-        # Instructions screen fonts
-        dim_titolo = int(self.base_font * scale)
-        dim_ms = int(self.base_font_ms * scale)
+        # Screen-specific fonts
         dim_attesa = int(self.base_font_attesa * scale)
         dim_istruzioni = int(self.base_font_istruzioni * scale)
         dim_about = int(self.base_font_about * scale)
         dim_pausa = int(self.base_font_pausa * scale)
 
-        self.font = pygame.font.SysFont('Helvetica', dim_titolo, False, False)
-        self.font_ms = pygame.font.SysFont('Helvetica', dim_ms, False, False)
-        self.font_attes = pygame.font.SysFont('Helvetica', dim_attesa, False, False)
+        self.font_attes = pygame.font.SysFont('Helvetica', dim_attesa, False, True)
         self.font_istruzioni = pygame.font.SysFont('Helvetica', dim_istruzioni, False, False)
         self.font_about = pygame.font.SysFont('Helvetica', dim_about, False, True)
         self.font_pausa = pygame.font.SysFont('Helvetica', dim_pausa, True, False)
+
+    def _aggiorna_slider_layout(self, scale: float) -> None:
+        """Update slider layout based on scale factor."""
+        self.x_slider = int(self.screen_width * SLIDER_MARGIN_RATIO)
+        self.slider_width = int(self.screen_width * SLIDER_WIDTH_RATIO)
+        self.y_slider = int(self.screen_height * SLIDER_MARGIN_RATIO)
+        self.pomello_radius = int(12 * scale)
+        self.helper_slider(settings.DURATA_MIN, settings.DURATA_MAX)
 
     # ========================================================================
     # UI ELEMENTS
     # ========================================================================
     
-    def caption_window(self):
+    def caption_window(self) -> None:
         """Set the window caption/title."""
-        self.caption = pygame.display.set_caption('Tachistostory')
-        return self.caption
+        pygame.display.set_caption('Tachistostory')
     
-    def get_font(self):
+    def get_font(self) -> pygame.font.Font:
         """Initialize the main font at base size."""
         self.font = pygame.font.SysFont('Helvetica', self.base_font, bold=False, italic=False)
         return self.font
     
-    def color(self):
+    def color(self) -> None:
         """Fill the screen with background color."""
         if self.screen is not None:
             self.screen.fill(self.bg_color)
             
-    def updating(self):
+    def updating(self) -> None:
         """Update the display."""
-        self.update = pygame.display.update()
-        return self.update
+        pygame.display.update()
     
-    def scrivi_testo_centrato(self, parola):
+    def scrivi_testo_centrato(self, parola: str) -> None:
         """
         Render centered text on the screen.
         
         Args:
             parola: The word/text to display
         """
-        parola_centrata = self.font.render(parola, True , (39,39,39))
+        if self.screen is None or self.font is None:
+            return
+            
+        parola_centrata = self.font.render(parola, True, (39, 39, 39))
         testo_rect = parola_centrata.get_rect(
-            center = (self.screen_width // 2, self.screen_height // 2)
+            center=(self.screen_width // 2, self.screen_height // 2)
         )
         self.screen.blit(parola_centrata, testo_rect)
     
-    def pannello_informativo(self):
+    def pannello_informativo(self) -> None:
         """
         Display information panel at bottom of screen.
         
         Shows current word position and total word count,
         or completion message when finished.
         """
+        if self.screen is None or self.font is None:
+            return
+            
         if self.stato_presentazione != State.END:
-            self.indice_umano = self.indice_parola + 1
-            self.totale = len(self.lista_parole)
-            self.testo_pannello = self.font.render(f"Word {self.indice_umano}/{self.totale}", True, (39,39,39))
-            testo_rect = self.testo_pannello.get_rect(
-                centerx=self.screen_width // 2,
-                bottom=self.screen_height - 20
+            indice_umano = self.indice_parola + 1
+            totale = len(self.lista_parole)
+            testo_pannello = self.font.render(
+                f"Word {indice_umano}/{totale}", 
+                True, 
+                (39, 39, 39)
             )
-            self.screen.blit(self.testo_pannello, testo_rect)
-        elif self.stato_presentazione == State.END:
-            self.testo_pannello = self.font.render(f"Parole terminate!", True, (39,39,39))
-            testo_rect = self.testo_pannello.get_rect(
-                centerx=self.screen_width // 2,
-                bottom=self.screen_height - 20
+        else:
+            testo_pannello = self.font.render(
+                "Parole terminate!", 
+                True, 
+                (39, 39, 39)
             )
-            self.screen.blit(self.testo_pannello, testo_rect)
+        
+        testo_rect = testo_pannello.get_rect(
+            centerx=self.screen_width // 2,
+            bottom=self.screen_height - 20
+        )
+        self.screen.blit(testo_pannello, testo_rect)
 
-    def error_message(self,e):
-        win_w,win_h = self.screen.get_size()
+    def error_message(self, e: Exception) -> None:
+        """Display error message on screen."""
+        if self.screen is None:
+            return
+            
+        win_w, win_h = self.screen.get_size()
         self.mostra_errore = True
-        self.error_text = self.font_attes.render(f"An error occurred: {e}, please try again", True, self.error_color)
+        self.error_text = self.font_attes.render(
+            f"An error occurred: {e}, please try again", 
+            True, 
+            self.error_color
+        )
         error_text_rect = self.error_text.get_rect(
-            centerx= win_w // 2,
-            bottom = self.screen_height - win_h // 3
-            )
+            centerx=win_w // 2,
+            bottom=self.screen_height - win_h // 3
+        )
         self.screen.blit(self.error_text, error_text_rect)
 
-    def invalid_message(self,file):
-        win_w,win_h = self.screen.get_size()
+    def invalid_message(self, file: str) -> None:
+        """Display invalid file message on screen."""
+        if self.screen is None:
+            return
+            
+        win_w, win_h = self.screen.get_size()
         self.mostra_errore = True
-        self.invalid_text = self.font_attes.render(f'{file} is not valid. Please try again', True, self.error_color)
+        self.invalid_text = self.font_attes.render(
+            f'{file} is not valid. Please try again', 
+            True, 
+            self.error_color
+        )
         invalid_text_rect = self.invalid_text.get_rect(
-            centerx= win_w // 2,
-            bottom = self.screen_height - win_h // 3
-            )
+            centerx=win_w // 2,
+            bottom=self.screen_height - win_h // 3
+        )
         self.screen.blit(self.invalid_text, invalid_text_rect)
 
-    def empty_message(self):
-        win_w,win_h = self.screen.get_size()
+    def empty_message(self) -> None:
+        """Display empty document message on screen."""
+        if self.screen is None:
+            return
+            
+        win_w, win_h = self.screen.get_size()
         self.mostra_errore = True
-        self.empty_text = self.font_attes.render('Document not readable or empty. Please try again', True, self.error_color)
+        self.empty_text = self.font_attes.render(
+            'Document not readable or empty. Please try again', 
+            True, 
+            self.error_color
+        )
         empty_text_rect = self.empty_text.get_rect(
-            centerx= win_w // 2,
-            bottom = self.screen_height - win_h // 3
-            )
+            centerx=win_w // 2,
+            bottom=self.screen_height - win_h // 3
+        )
         self.screen.blit(self.empty_text, empty_text_rect)
 
     # ========================================================================
     # SLIDER
     # ========================================================================
     
-    def disegna_slider(self):
+    def disegna_slider(self) -> None:
         """
         Draw the duration slider with tick marks and current position.
         
         Displays slider bar, tick marks at 0%, 25%, 50%, 75%, 100%,
         duration labels in milliseconds, and draggable knob.
         """
-        self.barra = pygame.draw.rect (
+        if self.screen is None:
+            return
+            
+        # Draw slider bar
+        pygame.draw.rect(
             self.screen, 
-            (39,39,39), 
-            rect=(self.x_slider, self.y_slider-2, self.slider_width, 4 ))   
+            (39, 39, 39), 
+            rect=(self.x_slider, self.y_slider - 2, self.slider_width, 4)
+        )
+        
+        # Draw tick marks and labels
         for fattore in self.lista_fattori:
             x_tacca = self.x_slider + fattore * self.slider_width
-            durata_tacca = settings.DURATA_MIN + fattore * (settings.DURATA_MAX-settings.DURATA_MIN)
-            durata_int= int (durata_tacca)
-            stringa = self.font_ms.render(f"{durata_int} ms", True, (39,39,39))
-            self.tacca = pygame.draw.rect (
-            self.screen,
-            (39,39,39), 
-            rect=(x_tacca - 2, self.y_slider - 8, 2, 16)  
+            durata_tacca = settings.DURATA_MIN + fattore * (settings.DURATA_MAX - settings.DURATA_MIN)
+            durata_int = int(durata_tacca)
+            
+            stringa = self.font_ms.render(f"{durata_int} ms", True, (39, 39, 39))
+            pygame.draw.rect(
+                self.screen,
+                (39, 39, 39), 
+                rect=(x_tacca - 2, self.y_slider - 8, 2, 16)
             )
-            self.rect = stringa.get_rect()
-            self.rect.centerx = x_tacca
-            self.rect.top = self.y_slider + 20
-            self.screen.blit(stringa, self.rect)
-        self.pomello = pygame.draw.circle(
+            
+            rect = stringa.get_rect()
+            rect.centerx = x_tacca
+            rect.top = self.y_slider + 20
+            self.screen.blit(stringa, rect)
+        
+        # Draw knob
+        pygame.draw.circle(
             self.screen, 
             (7, 165, 224), 
-            (self.posizione_cursore, self.y_slider),
-            self.pomello_radius)
+            (int(self.posizione_cursore), self.y_slider),
+            self.pomello_radius
+        )
 
-    def helper_slider(self, durata_min, durata_max):
+    def helper_slider(self, durata_min: float, durata_max: float) -> None:
         """
         Calculate slider knob position based on current duration.
         
@@ -511,50 +562,60 @@ class Tachistostory:
         """
         durata = self.durata_parola_ms
         fattore = (durata - durata_min) / (durata_max - durata_min)
-        if fattore < 0:
-            fattore = 0
-        if fattore > 1:
-            fattore = 1
+        fattore = max(0.0, min(1.0, fattore))  # Clamp between 0 and 1
         self.posizione_cursore = self.x_slider + fattore * self.slider_width
 
     # ========================================================================
     # ASSETS & SCREENS
     # ========================================================================
     
-    def load_assets(self):
+    def load_assets(self) -> None:
         """Load application assets (logo, icons, etc.)."""
-        self.logo_image = load_image_asset(os.path.join("assets","Tachistostory_logo.png"))
+        self.logo_image = load_image_asset(os.path.join("assets", "Tachistostory_logo.png"))
 
-    def disegna_schermata_attesa(self):
+    def disegna_schermata_attesa(self) -> None:
         """
         Draw the waiting screen (file drop screen).
         
         Displays logo and instructions to drag & drop a file.
         """
+        if self.screen is None:
+            return
+            
         self.screen.fill(self.menu_bg_color)
+        
         if self.logo_image:
             win_w, win_h = pygame.display.get_window_size()
-            self.larghezza_target = win_w * 0.4
+            larghezza_target = win_w * LOGO_WIDTH_RATIO
             logo_w, logo_h = self.logo_image.get_size()
-            scala = self.larghezza_target / logo_w
-            new_w = int(logo_w* scala)
+            scala = larghezza_target / logo_w
+            new_w = int(logo_w * scala)
             new_h = int(logo_h * scala)
-            x_logo = (win_w-new_w) / 2
+            x_logo = (win_w - new_w) / 2
             y_logo = win_h / 3 - new_h / 2
+            
             logo_scaled = pygame.transform.smoothscale(self.logo_image, (new_w, new_h))
             self.screen.blit(logo_scaled, (x_logo, y_logo))
-            font_attesa_file = self.font_attes.render("Drag a .txt or .doc/.docx file here to start", True, self.bg_color)
-            font = font_attesa_file.get_rect()
-            font.centerx = win_w // 2
-            font.top = y_logo + new_h + 40
-            self.screen.blit(font_attesa_file, font)
+            
+            font_attesa_file = self.font_attes.render(
+                "Drag a .txt or .doc/.docx file here to start", 
+                True, 
+                self.bg_color
+            )
+            font_rect = font_attesa_file.get_rect()
+            font_rect.centerx = win_w // 2
+            font_rect.top = y_logo + new_h + 40
+            self.screen.blit(font_attesa_file, font_rect)
     
-    def disegna_schermata_istruzioni(self):
+    def disegna_schermata_istruzioni(self) -> None:
         """
         Draw the instructions screen.
         
         Displays file information, word count, and keyboard command reference.
         """
+        if self.screen is None:
+            return
+            
         # Background
         self.screen.fill(self.menu_bg_color)
         win_w, win_h = self.screen.get_size()
@@ -568,8 +629,8 @@ class Tachistostory:
         nome_text = f'Loaded file: "{self.nome_file}"' if self.nome_file else 'Loaded file: -'
         nome_surf = self.font_attes.render(nome_text, True, self.bg_color)
         nome_rect = nome_surf.get_rect(
-            centerx = win_w // 2,
-            top     = titolo_rect.bottom + 30
+            centerx=win_w // 2,
+            top=titolo_rect.bottom + 30
         )
         self.screen.blit(nome_surf, nome_rect)
 
@@ -577,16 +638,16 @@ class Tachistostory:
         num_text = f'Number of words: {self.num_parole}' if self.num_parole is not None else 'Number of words: -'
         num_surf = self.font_attes.render(num_text, True, self.bg_color)
         num_rect = num_surf.get_rect(
-            centerx = win_w // 2,
-            top     = nome_rect.bottom + 10
+            centerx=win_w // 2,
+            top=nome_rect.bottom + 10
         )
         self.screen.blit(num_surf, num_rect)
 
         # Commands legend title
         legenda_surf = self.font_istruzioni.render('Main Commands', True, self.bg_color)
         legenda_rect = legenda_surf.get_rect(
-            centerx = win_w // 2,
-            top     = num_rect.bottom + 40
+            centerx=win_w // 2,
+            top=num_rect.bottom + 40
         )
         self.screen.blit(legenda_surf, legenda_rect)
 
@@ -604,31 +665,38 @@ class Tachistostory:
         for riga in righe_comandi:
             riga_surf = self.font_istruzioni.render(riga, True, self.bg_color)
             riga_rect = riga_surf.get_rect(
-                centerx = win_w // 2,
-                top     = y
+                centerx=win_w // 2,
+                top=y
             )
             self.screen.blit(riga_surf, riga_rect)
             y = riga_rect.bottom + 5
 
         # About footer
-        about = self.font_about.render('Created by Daniele Maurilli | maurillidaniele@gmail.com | github.com/danielemaurilli', True, self.bg_color)
-        about_rect = about.get_rect(
-            centerx = win_w // 2,
-            bottom = win_h - 15
+        about = self.font_about.render(
+            'Created by Daniele Maurilli | maurillidaniele@gmail.com | github.com/danielemaurilli', 
+            True, 
+            self.bg_color
         )
-        self.screen.blit (about, about_rect)
+        about_rect = about.get_rect(
+            centerx=win_w // 2,
+            bottom=win_h - 15
+        )
+        self.screen.blit(about, about_rect)
 
-    def disegna_schermata_di_pausa(self):
+    def disegna_schermata_di_pausa(self) -> None:
         """
         Draw the pause screen.
         
         Displays 'PAUSE' message in the center of the screen.
         """
+        if self.screen is None:
+            return
+            
         self.screen.fill(self.menu_bg_color)
         win_w, win_h = self.screen.get_size()
         scritta_pausa = self.font_pausa.render('PAUSE', True, self.bg_color)
         scritta_pausa_rect = scritta_pausa.get_rect(
-            centerx = win_w // 2,
-            top = win_h // 2
+            centerx=win_w // 2,
+            top=win_h // 2
         )
         self.screen.blit(scritta_pausa, scritta_pausa_rect)
