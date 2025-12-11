@@ -2,7 +2,7 @@
 
 ![License: Custom Non-Commercial](https://img.shields.io/badge/License-Custom_Non--Commercial-blue.svg)
 ![Clinical Use: Allowed](https://img.shields.io/badge/Clinical_Use-Allowed-green.svg)
-![Version](https://img.shields.io/badge/version-0.9.0-orange.svg)
+![Version](https://img.shields.io/badge/version-0.1.0-orange.svg)
 Maurilli, D. (2025). Tachistostory: Applicazione tachistoscopica per 
 il potenziamento delle abilità di lettura [Software]. 
 GitHub: https://github.com/danielemaurilli/tachistostory
