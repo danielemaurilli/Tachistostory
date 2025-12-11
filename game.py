@@ -5,8 +5,7 @@ Main tachistoscope application class with word presentation and display logic.
 
 import pygame
 from pygame.locals import RESIZABLE
-import sys
-import os
+import sys, os,re
 import docx2txt
 import settings 
 from enum import Enum, auto
@@ -117,6 +116,12 @@ class Tachistostory:
         self.parola_corrente = ""
         self.parola_mascherata = ""
 
+        #Phrases list initialization
+        self.phrases_list: List[str] = []
+        self.phrases_index = 0
+        self.phrases_total = 0
+        self.word_to_phrase_map: List[int] = []
+
         # Pause state
         self.in_pausa = False
 
@@ -204,24 +209,90 @@ class Tachistostory:
         """
         Go ahead to the next word with '->'
         """
-        if self.lista_parole:
-            aug = self.indice_parola + 1
-            if aug < len(self.lista_parole):   
-                self.indice_parola = aug
-                self.parola_corrente = self.lista_parole[aug]
-                self.parola_mascherata = self.maschera_parola(self.parola_corrente)
+        self.set_word_index(self.indice_parola + 1)
    
 
     def back(self):
         """
         Go back to the back word with '<-'
         """
+        self.set_word_index(self.indice_parola - 1)
+
+    def set_word_index(self, new_index: int) -> None:
+        """Select the current word (clamped) and keep phrase index synced."""
+        if not self.lista_parole:
+            return
+
+        if new_index < 0:
+            new_index = 0
+        elif new_index >= len(self.lista_parole):
+            new_index = len(self.lista_parole) - 1
+
+        self.indice_parola = new_index
+        self.parola_corrente = self.lista_parole[new_index]
+        self.parola_mascherata = self.maschera_parola(self.parola_corrente)
+        self._sync_phrase_index_to_word()
+
+    def _sync_phrase_index_to_word(self) -> None:
+        """Update phrases_index based on the current word index."""
+        if not self.word_to_phrase_map:
+            self.phrases_index = 0
+            return
+        if 0 <= self.indice_parola < len(self.word_to_phrase_map):
+            self.phrases_index = self.word_to_phrase_map[self.indice_parola]
+        else:
+            self.phrases_index = 0
+
+    def _build_words_and_phrase_map(self, full_text: str) -> None:
+        """Build lista_parole and a word->phrase mapping aligned with punctuation in the source text."""
+        words: List[str] = []
+        mapping: List[int] = []
+
+        phrase_idx = 0
+        had_word_in_phrase = False
+
+        # Characters that may appear after sentence punctuation
+        trailing_wrappers = '"\'”’)]}»'
+
+        for raw_line in full_text.splitlines():
+            line = raw_line.strip()
+            if not line:
+                continue
+
+            for raw_token in line.split():
+                cleaned = raw_token.strip(PUNCTUATION_CHARS + '1234567890')
+                if cleaned:
+                    words.append(cleaned)
+                    mapping.append(phrase_idx)
+                    had_word_in_phrase = True
+
+                token_tail = raw_token.rstrip(trailing_wrappers)
+                if re.search(r"[.!?]+$", token_tail) and had_word_in_phrase:
+                    phrase_idx += 1
+                    had_word_in_phrase = False
+
+        # Total phrases: if last phrase doesn't end with punctuation, count it too
+        computed_total = phrase_idx + (1 if had_word_in_phrase else 0)
+
+        # Also compute phrases_list via existing helper (kept for future use)
+        self.phrases_list = self.helper_sentences(full_text)
+        self.phrases_total = len(self.phrases_list) if self.phrases_list else computed_total
+
+        # Clamp mapping to available total (avoid e.g. 5/4)
+        if self.phrases_total > 0:
+            mapping = [min(idx, self.phrases_total - 1) for idx in mapping]
+
+        self.lista_parole = words
+        self.word_to_phrase_map = mapping
+
+        # Initialize word/phrase selection
         if self.lista_parole:
-            aug = self.indice_parola - 1
-            if aug < len(self.lista_parole) and aug >= -1:   
-                self.indice_parola = aug
-                self.parola_corrente = self.lista_parole[aug]
-                self.parola_mascherata = self.maschera_parola(self.parola_corrente)
+            self.set_word_index(0)
+        else:
+            self.indice_parola = 0
+            self.parola_corrente = ""
+            self.parola_mascherata = ""
+            self.phrases_index = 0
    
             
     # ========================================================================
@@ -270,17 +341,12 @@ class Tachistostory:
         with open(nome_file, 'r', encoding='utf-8') as file:
             testo = file.read()
         
-        lista_parole = self._pulisci_e_carica_parole(testo)
-        
-        if not lista_parole:
+        self._build_words_and_phrase_map(testo)
+
+        if not self.lista_parole:
             raise ValueError("Il file è vuoto")
-        
-        self.lista_parole = lista_parole
-        self.indice_parola = 0
-        self.parola_corrente = self.lista_parole[0]
-        self.parola_mascherata = self.maschera_parola(self.parola_corrente)
-        
-        return lista_parole
+
+        return self.lista_parole
 
     def carica_parola_da_word(self, percorso: str) -> List[str]:
         """
@@ -300,19 +366,17 @@ class Tachistostory:
             raise FileNotFoundError(f"File not found: {percorso}")
         
         testo = docx2txt.process(percorso)
-        lista_parole = self._pulisci_e_carica_parole(testo)
-        
-        if not lista_parole:
+        self._build_words_and_phrase_map(testo)
+
+        if not self.lista_parole:
             raise ValueError("Word document appears to be empty after conversion.")
-        
-        self.lista_parole = lista_parole
-        self.indice_parola = 0
-        self.parola_corrente = self.lista_parole[0]
-        self.parola_mascherata = self.maschera_parola(self.parola_corrente)
-        
-        return lista_parole
+
+        return self.lista_parole
     
     def reset(self):
+        """
+        Reset the game 
+        """
         self.stato_presentazione = State.FILE
         self.file_caricato = False
         self.percorso_file = None
@@ -322,9 +386,38 @@ class Tachistostory:
         self.indice_parola = 0
         self.parola_corrente = ""
         self.parola_mascherata = ""
+        self.phrases_list = []
+        self.phrases_index = 0
+        self.phrases_total = 0
+        self.word_to_phrase_map = []
         self.in_pausa = False
         self.mostra_errore = False
 
+    def helper_sentences(self, full_text):
+        """
+        helper_sentences -> help to strip/split by sentences
+        
+        :param self: class based
+        :param full_text: full-text uploaded by User
+        """
+        phrases_list = [s.strip() for s in re.split(r"[.!?]+", full_text) if s.strip()]
+        return phrases_list
+    
+    def expose_sentences(self, text):
+        """
+        expose_sentences -> improve the logic used to look the n. of sentences
+        
+        :param self: class-based
+        :param text: text by helper_sentences (the full-text)
+        """
+        self.phrases_list = self.helper_sentences(text)
+        self.phrases_index = 0
+        current_phrase = self.phrases_list[self.phrases_index]
+        return current_phrase
+
+
+
+                
     # ========================================================================
     # SCREEN FUNCTIONS
     # ========================================================================
@@ -465,27 +558,59 @@ class Tachistostory:
         )
         self.screen.blit(parola_centrata, testo_rect)
     
-    def pannello_informativo(self) -> None:
+    def word_panel(self) -> None:
         """
-        Display information panel at bottom of screen.
+        Display word information panel at bottom of screen.
         
-        Shows current word position and total word count,
-        or completion message when finished.
+        Shows current word position and total word count.
         """
         if self.screen is None or self.font is None:
             return
             
-        if self.stato_presentazione != State.END:
-            indice_umano = self.indice_parola + 1
-            totale = len(self.lista_parole)
-            testo_pannello = self.font.render(
-                f"Word {indice_umano}/{totale}", 
+        indice_umano = self.indice_parola + 1
+        totale = len(self.lista_parole)
+        testo_pannello = self.font.render(
+            f"Word: {indice_umano}/{totale}", 
+            True, 
+            (39, 39, 39)
+            )
+        
+        testo_rect = testo_pannello.get_rect(
+            centerx=self.screen_width // 2 - 250,
+            bottom=self.screen_height - 20
+        )
+        self.screen.blit(testo_pannello, testo_rect)
+
+    def phrases_panel(self) -> None:
+        """
+        Display phrases information panel at bottom of screen.
+        
+        Shows current phrases position and total phrases count.
+        """
+        if self.screen is None or self.font is None:
+            return
+        total = self.phrases_total
+        phrases = (self.phrases_index + 1) if total > 0 else 0
+        testo_pannello = self.font.render(
+                f"Phrases: {phrases}/{total}", 
                 True, 
                 (39, 39, 39)
             )
-        else:
-            testo_pannello = self.font.render(
-                "Parole terminate!", 
+        
+        testo_rect = testo_pannello.get_rect(
+            centerx=self.screen_width // 2 + 250,
+            bottom=self.screen_height - 20
+        )
+        self.screen.blit(testo_pannello, testo_rect)
+
+    def ended_words_panel(self) -> None:
+        """
+        Display the end of words.
+        """
+        if self.screen is None or self.font is None:
+            return
+        testo_pannello = self.font.render(
+                "The words are ended", 
                 True, 
                 (39, 39, 39)
             )
@@ -703,7 +828,10 @@ class Tachistostory:
             '- P: pause / resume presentation',
             '- R: restart from first word',
             '- F: toggle fullscreen',
-            '- I: minimize window (iconify)'
+            '- I: minimize window (iconify)',
+            '- E: reset the game',
+            '- "<--": go back to the previous word',
+            '- "-->" : go ahead to the next word'
         ]
 
         y = legenda_rect.bottom + 15

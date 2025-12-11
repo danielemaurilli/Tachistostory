@@ -61,10 +61,9 @@ def main():
 
     def handle_show_mask(elapsed_ms: int) -> None:
         if elapsed_ms >= app.durata_maschera_ms and app.avanti:
-            app.indice_parola += 1
-            if app.indice_parola < len(app.lista_parole):
-                app.parola_corrente = app.lista_parole[app.indice_parola]
-                app.parola_mascherata = app.maschera_parola(app.parola_corrente)
+            next_index = app.indice_parola + 1
+            if next_index < len(app.lista_parole):
+                app.set_word_index(next_index)
                 app.stato_presentazione = State.SHOW_WORD
                 app.tempo_inizio_stato = pygame.time.get_ticks()
             else:
@@ -166,9 +165,7 @@ def main():
                     if event.key == K_SPACE:
                         app.avanti = True
                     if event.key == K_r:
-                        app.indice_parola = 0
-                        app.parola_corrente = app.lista_parole[0]
-                        app.parola_mascherata = app.maschera_parola(app.parola_corrente)
+                        app.set_word_index(0)
                         app.stato_presentazione = State.SHOW_WORD
                         app.tempo_inizio_stato = pygame.time.get_ticks()
                         app.in_pausa = False
@@ -301,7 +298,11 @@ def main():
             if renderer:
                 renderer()
 
-            app.pannello_informativo()
+            if app.stato_presentazione != State.END:
+                app.word_panel()
+                app.phrases_panel()
+            else:
+                app.ended_words_panel()
             app.updating()
             clock.tick(60)
 
