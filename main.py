@@ -4,11 +4,13 @@ Speed reading training application using tachistoscope technique.
 """
 
 import pygame 
-import pygame
 from pygame.locals import (
-    QUIT, KEYDOWN, K_SPACE, K_RETURN, K_p, K_r, K_f, K_i,
-    MOUSEBUTTONDOWN, MOUSEBUTTONUP, MOUSEMOTION, VIDEORESIZE,
-    K_KP_ENTER, RESIZABLE
+    QUIT, KEYDOWN, K_SPACE, K_RETURN,
+    K_p, K_r, K_f, K_i, K_RIGHT, K_LEFT,
+    MOUSEBUTTONDOWN, MOUSEBUTTONUP, 
+    MOUSEMOTION, VIDEORESIZE,
+    K_KP_ENTER, RESIZABLE,
+    K_e
 )
 import sys
 import os
@@ -109,8 +111,9 @@ def main():
                                 app.stato_presentazione = State.ISTRUCTION
                                 app.num_parole = len(app.lista_parole)
                                 app.tempo_inizio_stato = pygame.time.get_ticks()
-                                app.get_full_screen()
-                                app.aggiorna_layout()  
+                                if app.full_screen == False:
+                                    app.get_full_screen()
+                                    app.aggiorna_layout()  
                             else:
                                 app.mostra_errore = True
                                 app.tipo_errore = Error.EMPTY
@@ -132,8 +135,9 @@ def main():
                                 app.stato_presentazione = State.ISTRUCTION
                                 app.num_parole = len(app.lista_parole)
                                 app.tempo_inizio_stato = pygame.time.get_ticks()
-                                app.get_full_screen()
-                                app.aggiorna_layout()
+                                if app.full_screen == True:    
+                                    app.get_full_screen()
+                                    app.aggiorna_layout()
                             else:
                                 app.mostra_errore = True
                                 app.tipo_errore = Error.EMPTY
@@ -181,6 +185,12 @@ def main():
                     if event.key == K_f and app.stato_presentazione != State.ISTRUCTION:
                         app.get_full_screen()
                         app.aggiorna_layout()
+                    if event.key == K_RIGHT:
+                        app.go()
+                    if event.key == K_LEFT:
+                        app.back()
+                    if event.key == K_e:
+                        app.reset() 
 
                 # ================================================================
                 # MOUSE INPUT (only relevant if slider exists)

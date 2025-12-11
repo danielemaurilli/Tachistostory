@@ -55,6 +55,14 @@ def load_image_asset(relative_path: str) -> pygame.Surface:
     return pygame.image.load(resource_path(relative_path)).convert_alpha()
 
 
+class Error(Enum):
+    """
+    Docstring per Error
+    """
+    EMPTY = auto()
+    EXCEPTION = auto()
+    INVALID = auto ()
+
 class State(Enum):
     """Application states for the tachistoscope."""
     FILE = auto()         # Waiting for file
@@ -192,6 +200,30 @@ class Tachistostory:
                 masked_chars.append("#")
         return "".join(masked_chars)
 
+    def go(self):
+        """
+        Go ahead to the next word with '->'
+        """
+        if self.lista_parole:
+            aug = self.indice_parola + 1
+            if aug < len(self.lista_parole):   
+                self.indice_parola = aug
+                self.parola_corrente = self.lista_parole[aug]
+                self.parola_mascherata = self.maschera_parola(self.parola_corrente)
+   
+
+    def back(self):
+        """
+        Go back to the back word with '<-'
+        """
+        if self.lista_parole:
+            aug = self.indice_parola - 1
+            if aug < len(self.lista_parole) and aug >= -1:   
+                self.indice_parola = aug
+                self.parola_corrente = self.lista_parole[aug]
+                self.parola_mascherata = self.maschera_parola(self.parola_corrente)
+   
+            
     # ========================================================================
     # FILE LOADING
     # ========================================================================
@@ -279,6 +311,19 @@ class Tachistostory:
         self.parola_mascherata = self.maschera_parola(self.parola_corrente)
         
         return lista_parole
+    
+    def reset(self):
+        self.stato_presentazione = State.FILE
+        self.file_caricato = False
+        self.percorso_file = None
+        self.nome_file = None
+        self.num_parole = None
+        self.lista_parole = []
+        self.indice_parola = 0
+        self.parola_corrente = ""
+        self.parola_mascherata = ""
+        self.in_pausa = False
+        self.mostra_errore = False
 
     # ========================================================================
     # SCREEN FUNCTIONS
