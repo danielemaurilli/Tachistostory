@@ -43,6 +43,13 @@ Moussaoui, S., Siddiqi, A., Cheung, T. C. K., & Niemeier, M. (2023). Reading wit
 
 Piazzalunga, C., Dui, L. G., Fontolan, S., Franceschini, S., Bortolozzo, M., Termine, C., & Ferrante, S. (2023). Evaluating the efficacy of a serious game in enhancing word reading speed. In *Proceedings of the 17th European Conference on Games Based Learning*. https://doi.org/10.34190/ecgbl.17.1.1661  
 
+
+### Immagini
+<img width="560" height="736" alt="Screenshot 2025-12-11 alle 16 48 39" src="https://github.com/user-attachments/assets/a1ec3bcf-fc98-4059-8f71-2a53306969ca" />
+<img width="1698" height="937" alt="Screenshot 2025-12-11 alle 16 48 52" src="https://github.com/user-attachments/assets/32fafffc-301e-4e50-a601-28787ab84c6a" />
+<img width="1624" height="918" alt="Screenshot 2025-12-11 alle 16 49 01" src="https://github.com/user-attachments/assets/a782e677-c18d-4c58-9f94-fe1496b28334" />
+
+
 ### Come Funziona
 
 Il tachistoscopio presenta parole singole per brevi periodi di tempo controllati, allenando il sistema visivo a processare l'informazione scritta in modo più efficiente. Il training segue un percorso graduale:
