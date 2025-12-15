@@ -81,8 +81,8 @@ class Tachistostory:
     def __init__(self):
         # Screen setup
         self.screen: Optional[pygame.Surface] = None
-        self.base_width = 600
-        self.base_height = 800
+        self.base_width = 1920
+        self.base_height = 1080
         self.screen_width = self.base_width
         self.screen_height = self.base_height
 
@@ -90,10 +90,16 @@ class Tachistostory:
         self.bg_color = (210, 245, 130)
         self.menu_bg_color = (0, 157, 198)
         self.error_color = (200, 30, 30)
+
+        #Background
+        self.bg_menu = None
         
         # Logo
         self.logo_image: Optional[pygame.Surface] = None
         self.logo_icon: Optional[pygame.Surface] = None
+        self.logo_alpha = 0
+        self.logo_fade_duration = 3500
+        self.logo_fade_start = pygame.time.get_ticks()
         
         # Intro assets
         self.bg_menu: Optional[pygame.Surface] = None
@@ -198,7 +204,7 @@ class Tachistostory:
     def get_screen(self) -> pygame.Surface:
         """Initialize and return the main display window."""
         self.screen = pygame.display.set_mode([self.screen_width, self.screen_height], RESIZABLE)
-        self.logo_icon = load_image_asset(os.path.join("assets", "logo", "Tachistostory_logo.png"))
+        self.logo_icon = load_image_asset(os.path.join("assets", "logo", "tachistostory_title.png"))
         pygame.display.set_icon(self.logo_icon)
         return self.screen
     
@@ -513,7 +519,91 @@ class Tachistostory:
 
         self._aggiorna_fonts(scale)
         self._aggiorna_slider_layout(scale)
+        self._scala_background_intro()  # AGGIUNGI QUESTA CHIAMATA
 
+    def _scale_image_cover(self, image: pygame.Surface, target_width: int, target_height: int) -> pygame.Surface:
+        """Scala un'immagine per coprire l'area target mantenendo aspect ratio (cover mode).
+        
+        Args:
+            image: Immagine originale da scalare
+            target_width: Larghezza target
+            target_height: Altezza target
+            
+        Returns:
+            Immagine scalata che copre completamente l'area target
+        """
+        img_w, img_h = image.get_size()
+        img_ratio = img_w / img_h
+        target_ratio = target_width / target_height
+        
+        # Calcola dimensioni per coprire tutto lo schermo (cover)
+        if img_ratio > target_ratio:
+            # Immagine più larga: scala in base all'altezza
+            new_h = target_height
+            new_w = int(new_h * img_ratio)
+        else:
+            # Immagine più alta: scala in base alla larghezza
+            new_w = target_width
+            new_h = int(new_w / img_ratio)
+        
+        # Usa scale2x multiplo per immagini molto piccole (migliora qualità)
+        scaling_factor = max(new_w / img_w, new_h / img_h)
+        
+        if scaling_factor > 4:
+            # Upscaling molto grande (>4x): applica scale2x tre volte
+            scaled = pygame.transform.scale2x(image)
+            scaled = pygame.transform.scale2x(scaled)
+            scaled = pygame.transform.scale2x(scaled)
+            scaled = pygame.transform.smoothscale(scaled, (new_w, new_h))
+        elif scaling_factor > 2:
+            # Upscaling medio (2-4x): applica scale2x due volte
+            scaled = pygame.transform.scale2x(image)
+            scaled = pygame.transform.scale2x(scaled)
+            scaled = pygame.transform.smoothscale(scaled, (new_w, new_h))
+        elif scaling_factor > 1.5:
+            # Upscaling piccolo (1.5-2x): applica scale2x una volta
+            scaled = pygame.transform.scale2x(image)
+            scaled = pygame.transform.smoothscale(scaled, (new_w, new_h))
+        else:
+            scaled = pygame.transform.smoothscale(image, (new_w, new_h))
+        
+        # Crea superficie target e centra l'immagine
+        result = pygame.Surface((target_width, target_height))
+        result.fill((0, 0, 0))  # Sfondo nero per le parti non coperte
+        
+        # Centra l'immagine
+        x_offset = (target_width - new_w) // 2
+        y_offset = (target_height - new_h) // 2
+        result.blit(scaled, (x_offset, y_offset))
+        
+        return result
+
+    def _scala_background_intro(self) -> None:
+        """Scala i background intro alle dimensioni correnti della finestra."""
+        # Scala bg_menu se esiste (controlla che non sia placeholder)
+        if self.bg_menu and hasattr(self, '_bg_menu_original'):
+            self.bg_menu = self._scale_image_cover(
+                self._bg_menu_original, 
+                self.screen_width, 
+                self.screen_height
+            )
+        
+        # Scala bg_tavolo se esiste
+        if self.bg_tavolo and hasattr(self, '_bg_tavolo_original'):
+            self.bg_tavolo = self._scale_image_cover(
+                self._bg_tavolo_original,
+                self.screen_width,
+                self.screen_height
+            )
+        
+        # Scala book_open_bg se esiste
+        if self.book_open_bg and hasattr(self, '_book_open_original'):
+            self.book_open_bg = self._scale_image_cover(
+                self._book_open_original,
+                self.screen_width,
+                self.screen_height
+            )
+        
     def _aggiorna_fonts(self, scale: float) -> None:
         """Update font sizes based on scale factor."""
         # Main fonts
@@ -766,7 +856,9 @@ class Tachistostory:
         
         # Logo principale
         try:
-            self.logo_image = load_image_asset(os.path.join("assets", "logo", "Tachistostory_logo.png"))
+            self.logo_image = load_image_asset(os.path.join("assets", "logo", "tachistostory_title.png"))
+            # Rendi il nero trasparente
+            self.logo_image.set_colorkey((0, 0, 0))
             print("  ✓ Logo principale caricato")
         except Exception as e:
             print(f"  ⚠ Logo principale non trovato: {e}")
@@ -774,19 +866,25 @@ class Tachistostory:
         
         # Background menu iniziale
         try:
-            self.bg_menu = load_image_asset(os.path.join("assets", "gfx", "bg", "bg_menu_table_book.png"))
+            bg_original = load_image_asset(os.path.join("assets", "gfx", "bg", "bg_menu_table_book.png"))
+            self._bg_menu_original = bg_original  # SALVA ORIGINALE
+            self.bg_menu = self._scale_image_cover(bg_original, self.screen_width, self.screen_height)
             print("  ✓ Background menu caricato")
         except Exception as e:
             print(f"  ⚠ Background menu non trovato: {e}")
-            self.bg_menu = self._create_placeholder_surface((800, 600), (50, 50, 100))
+            self.bg_menu = self._create_placeholder_surface((self.screen_width, self.screen_height), (50, 50, 100))
         
-        # Background tavolo (può essere uguale al menu)
+        # Background tavolo
         try:
-            self.bg_tavolo = load_image_asset(os.path.join("assets", "gfx", "bg", "bg_menu_table.png"))
+            tavolo_original = load_image_asset(os.path.join("assets", "gfx", "bg", "bg_menu_table.png"))
+            self._bg_tavolo_original = tavolo_original  # SALVA ORIGINALE
+            self.bg_tavolo = self._scale_image_cover(tavolo_original, self.screen_width, self.screen_height)
             print("  ✓ Background tavolo caricato")
         except Exception as e:
             print(f"  ⚠ Background tavolo non trovato, uso menu: {e}")
-            self.bg_tavolo = self.bg_menu  # Fallback al menu
+            self.bg_tavolo = self.bg_menu
+            if hasattr(self, '_bg_menu_original'):
+                self._bg_tavolo_original = self._bg_menu_original
         
         # Sprite libro chiuso
         try:
@@ -811,14 +909,17 @@ class Tachistostory:
         
         # Background libro aperto (per istruzioni)
         try:
-            self.book_open_bg = load_image_asset(os.path.join("assets", "gfx", "book", "book_open_idle_64_sheet.png"))
-            # Prendi primo frame come background statico
-            if self.book_frames:
-                self.book_open_bg = self.book_frames[-1]  # Ultimo frame = libro completamente aperto
+            book_open_original = load_image_asset(os.path.join("assets", "gfx", "book", "book_open_idle_64_sheet.png"))
+            self._book_open_original = book_open_original if not self.book_frames else self.book_frames[-1]
+            self.book_open_bg = self._scale_image_cover(
+                self._book_open_original, 
+                self.screen_width, 
+                self.screen_height
+            )
             print("  ✓ Background libro aperto caricato")
         except Exception as e:
             print(f"  ⚠ Background libro aperto non trovato: {e}")
-            self.book_open_bg = self._create_placeholder_surface((600, 400), (255, 248, 220))
+            self.book_open_bg = self._create_placeholder_surface((self.screen_width, self.screen_height), (255, 248, 220))
         
         print("[LOADING] Caricamento asset completato\n")
     
@@ -875,35 +976,23 @@ class Tachistostory:
         """
         Draw the waiting screen (file drop screen).
         
-        Displays logo and instructions to drag & drop a file.
+        Displays instructions to drag & drop a file.
         """
         if self.screen is None:
             return
             
         self.screen.fill(self.menu_bg_color)
         
-        if self.logo_image:
-            win_w, win_h = pygame.display.get_window_size()
-            larghezza_target = win_w * LOGO_WIDTH_RATIO
-            logo_w, logo_h = self.logo_image.get_size()
-            scala = larghezza_target / logo_w
-            new_w = int(logo_w * scala)
-            new_h = int(logo_h * scala)
-            x_logo = (win_w - new_w) / 2
-            y_logo = win_h / 3 - new_h / 2
-            
-            logo_scaled = pygame.transform.smoothscale(self.logo_image, (new_w, new_h))
-            self.screen.blit(logo_scaled, (x_logo, y_logo))
-            
-            font_attesa_file = self.font_attes.render(
-                "Drag a .txt or .doc/.docx file here to start", 
-                True, 
-                self.bg_color
-            )
-            font_rect = font_attesa_file.get_rect()
-            font_rect.centerx = win_w // 2
-            font_rect.top = y_logo + new_h + 40
-            self.screen.blit(font_attesa_file, font_rect)
+        win_w, win_h = pygame.display.get_window_size()
+        
+        font_attesa_file = self.font_attes.render(
+            "Drag a .txt or .doc/.docx file here to start", 
+            True, 
+            self.bg_color
+        )
+        font_rect = font_attesa_file.get_rect()
+        font_rect.center = (win_w // 2, win_h // 2)
+        self.screen.blit(font_attesa_file, font_rect)
     
     def disegna_schermata_istruzioni(self) -> None:
         """
@@ -1005,15 +1094,58 @@ class Tachistostory:
 
     def disegna_menu_start(self) -> None:
         """
-        Draw the initial menu screen (placeholder).
+        Draw the initial menu screen.
         
-        Displays a dark background with "MENU" text.
+        Displays background, Tachistostory logo, and start prompt.
         """
         if self.screen is None:
             return
             
-        self.screen.fill((39, 39, 39))
-        self.scrivi_testo_centrato("MENU")
+        self.screen.blit(self.bg_menu, (0,0))
+        
+        # Disegna il logo Tachistostory
+        if self.logo_image:
+            win_w, win_h = pygame.display.get_window_size()
+            larghezza_target = win_w * LOGO_WIDTH_RATIO
+            logo_w, logo_h = self.logo_image.get_size()
+            scala = larghezza_target / logo_w
+            new_w = int(logo_w * scala)
+            new_h = int(logo_h * scala)
+            x_logo = (win_w - new_w) / 2
+            y_logo = win_h / 3 - new_h / 2
+
+            #Fade-In time title
+            logo_start = pygame.time.get_ticks()
+            difference = logo_start - self.logo_fade_start
+            progress = difference / self.logo_fade_duration
+            progress_smooth = progress ** 2
+            alpha = min(progress_smooth * 255, 255)
+            logo_fade = self.logo_image.copy()
+            logo_fade.set_alpha(alpha)
+            logo_fade.set_colorkey((0,0,0))
+
+            logo_scaled = pygame.transform.smoothscale(logo_fade, (new_w, new_h))
+            self.screen.blit(logo_scaled, (x_logo, y_logo))
+
+            # Testo "Premi INVIO per iniziare"
+            if alpha >= 255:
+                actual = pygame.time.get_ticks()
+                cicle = actual % 1000
+                if cicle < 500:    
+                    font_invio = self.font_attes.render(
+                        "Premi INVIO per iniziare", 
+                        True, 
+                        (242, 214, 75)  # Bianco
+                    )
+                # Rendi lo sfondo del testo trasparente
+                    font_invio.set_colorkey((0, 0, 0))
+                    font_rect = font_invio.get_rect()
+                    font_rect.centerx = win_w // 2
+                    font_rect.top = y_logo + new_h + 100
+                    self.screen.blit(font_invio, font_rect)
+
+            
+            
 
     def disegna_tavolo_libro_chiuso(self) -> None:
         """
@@ -1040,4 +1172,3 @@ class Tachistostory:
         self.scrivi_testo_centrato("ANIMATION")
 
 
-    

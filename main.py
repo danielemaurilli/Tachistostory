@@ -40,7 +40,7 @@ def main():
     app.helper_slider(settings.DURATA_MIN, settings.DURATA_MAX)
     app.stato_presentazione = State.MENU_START
     app.tempo_inizio_stato = pygame.time.get_ticks()
-    
+
     # Error renderers (avoid long if/elif chains)
     error_renderers = {
         Error.EMPTY: app.empty_message,
@@ -162,7 +162,10 @@ def main():
                 # KEYBOARD INPUT (only active after file is loaded)
                 # ================================================================
                 
-                if event.type == KEYDOWN and app.file_caricato:
+                if event.type == KEYDOWN:
+                    # DEBUG: stampa stato corrente e tasto premuto
+                    print(f"Tasto premuto, stato attuale: {app.stato_presentazione}")
+                    
                     if event.key == K_p:
                         app.in_pausa = not app.in_pausa
                         app.tempo_inizio_stato = pygame.time.get_ticks()
@@ -178,7 +181,20 @@ def main():
                         app.aggiorna_layout()
                     if event.key == K_i:
                         app.iconifize()
-                    if event.key in (K_RETURN, K_KP_ENTER) and app.stato_presentazione == State.ISTRUCTION:
+                    if event.key in (K_RETURN, K_KP_ENTER) and app.stato_presentazione == State.MENU_START:
+                        print("Cambio a INTRO_TABLE")  # DEBUG
+                        app.stato_presentazione = State.INTRO_TABLE
+                        app.tempo_inizio_stato = pygame.time.get_ticks()
+                        continue
+                    elif event.key in (K_RETURN, K_KP_ENTER) and app.stato_presentazione == State.INTRO_TABLE:
+                        app.stato_presentazione = State.INTRO_BOOK_OPEN
+                        app.tempo_inizio_stato = pygame.time.get_ticks()
+                        continue
+                    elif event.key in (K_RETURN, K_KP_ENTER) and app.stato_presentazione == State.INTRO_BOOK_OPEN:
+                        app.stato_presentazione = State.FILE
+                        app.tempo_inizio_stato = pygame.time.get_ticks()
+                        continue
+                    elif event.key in (K_RETURN, K_KP_ENTER) and app.stato_presentazione == State.ISTRUCTION:
                         app.stato_presentazione = State.SHOW_WORD
                         app.tempo_inizio_stato = pygame.time.get_ticks()
                         app.in_pausa = False
@@ -266,9 +282,12 @@ def main():
             # GAME LOGIC & RENDERING
             # ====================================================================
             
-            # Waiting mode (no file loaded)
-            if not app.file_caricato:
-                state_renderers[State.MENU_START]()
+            # Waiting mode (no file loaded) 
+            if app.stato_presentazione in (State.MENU_START, State.INTRO_TABLE, State.INTRO_BOOK_OPEN):
+                # USA LO STATO CORRENTE, non sempre MENU_START
+                renderer = state_renderers.get(app.stato_presentazione)
+                if renderer:
+                    renderer()
                 app.updating()
                 clock.tick(60)
                 continue  
