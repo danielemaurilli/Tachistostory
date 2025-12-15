@@ -38,7 +38,9 @@ def main():
     app.load_assets() 
     app.disegna_schermata_attesa() 
     app.helper_slider(settings.DURATA_MIN, settings.DURATA_MAX)
+    app.stato_presentazione = State.MENU_START
     app.tempo_inizio_stato = pygame.time.get_ticks()
+    
     # Error renderers (avoid long if/elif chains)
     error_renderers = {
         Error.EMPTY: app.empty_message,
@@ -47,6 +49,9 @@ def main():
     }
 
     state_renderers = {
+        State.MENU_START: app.disegna_menu_start,
+        State.INTRO_TABLE: app.disegna_tavolo_libro_chiuso,
+        State.INTRO_BOOK_OPEN: app.disegna_apertura_libro,
         State.FILE: app.disegna_schermata_attesa,
         State.ISTRUCTION: app.disegna_schermata_istruzioni,
         State.SHOW_WORD: lambda: app.scrivi_testo_centrato(app.parola_corrente),
@@ -263,7 +268,7 @@ def main():
             
             # Waiting mode (no file loaded)
             if not app.file_caricato:
-                state_renderers[State.FILE]()
+                state_renderers[State.MENU_START]()
                 app.updating()
                 clock.tick(60)
                 continue  

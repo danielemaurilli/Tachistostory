@@ -64,6 +64,10 @@ class Error(Enum):
 
 class State(Enum):
     """Application states for the tachistoscope."""
+    MENU_START = auto()
+    INTRO_TABLE = auto()
+    INTRO_BOOK_OPEN = auto()
+    TRANSITION = auto()
     FILE = auto()         # Waiting for file
     ISTRUCTION = auto()   # Instructions screen
     SHOW_WORD = auto()    # Displaying word
@@ -91,6 +95,20 @@ class Tachistostory:
         self.logo_image: Optional[pygame.Surface] = None
         self.logo_icon: Optional[pygame.Surface] = None
         
+        # Intro assets
+        self.bg_menu: Optional[pygame.Surface] = None
+        self.bg_tavolo: Optional[pygame.Surface] = None
+        self.sprite_libro_chiuso: Optional[pygame.Surface] = None
+        self.book_frames: List[pygame.Surface] = []
+        self.book_open_bg: Optional[pygame.Surface] = None
+        self.book_current_frame = 0
+        self.book_animation_start = 0
+        
+        # Transition effects
+        self.transition_active = False
+        self.transition_alpha = 0
+        self.transition_target_state: Optional[State] = None
+        
         # Instructions screen
         self.nome_file: Optional[str] = None
         self.num_parole: Optional[int] = None
@@ -99,7 +117,7 @@ class Tachistostory:
         self.font: Optional[pygame.font.Font] = None
 
         # Presentation state
-        self.stato_presentazione = State.FILE
+        self.stato_presentazione = State.MENU_START
         
         # File loaded flag
         self.file_caricato = False
@@ -149,12 +167,15 @@ class Tachistostory:
         self.base_font_istruzioni = 28
         self.base_font_pausa = 60
         
-        # Initialize fonts
-        self.font_attes = pygame.font.SysFont('Helvetica', self.base_font_attesa, bold=False, italic=True)
-        self.font_ms = pygame.font.SysFont('Helvetica', self.base_font_ms, bold=False, italic=False)
-        self.font_istruzioni = pygame.font.SysFont('Helvetica', self.base_font_istruzioni, bold=False, italic=False)
-        self.font_about = pygame.font.SysFont('Helvetica', self.base_font_about, bold=False, italic=True)
-        self.font_pausa = pygame.font.SysFont('Helvetica', self.base_font_pausa, True, False)
+        # Font path
+        self.font_path = resource_path(os.path.join("assets", "fonts", "Cinzel-VariableFont_wght.ttf"))
+        
+        # Initialize fonts from file
+        self.font_attes = pygame.font.Font(self.font_path, self.base_font_attesa)
+        self.font_ms = pygame.font.Font(self.font_path, self.base_font_ms)
+        self.font_istruzioni = pygame.font.Font(self.font_path, self.base_font_istruzioni)
+        self.font_about = pygame.font.Font(self.font_path, self.base_font_about)
+        self.font_pausa = pygame.font.Font(self.font_path, self.base_font_pausa)
 
         # Error message
         self.error_text: Optional[pygame.Surface] = None
@@ -177,7 +198,7 @@ class Tachistostory:
     def get_screen(self) -> pygame.Surface:
         """Initialize and return the main display window."""
         self.screen = pygame.display.set_mode([self.screen_width, self.screen_height], RESIZABLE)
-        self.logo_icon = load_image_asset(os.path.join("assets", "Tachistostory.png"))
+        self.logo_icon = load_image_asset(os.path.join("assets", "logo", "Tachistostory_logo.png"))
         pygame.display.set_icon(self.logo_icon)
         return self.screen
     
@@ -498,8 +519,8 @@ class Tachistostory:
         # Main fonts
         font_size = int(self.base_font * scale)
         font_ms_size = int(self.base_font_ms * scale)
-        self.font = pygame.font.SysFont('Helvetica', font_size, bold=False, italic=False)
-        self.font_ms = pygame.font.SysFont('Helvetica', font_ms_size, bold=False, italic=False)
+        self.font = pygame.font.Font(self.font_path, font_size)
+        self.font_ms = pygame.font.Font(self.font_path, font_ms_size)
 
         # Screen-specific fonts
         dim_attesa = int(self.base_font_attesa * scale)
@@ -507,10 +528,10 @@ class Tachistostory:
         dim_about = int(self.base_font_about * scale)
         dim_pausa = int(self.base_font_pausa * scale)
 
-        self.font_attes = pygame.font.SysFont('Helvetica', dim_attesa, False, True)
-        self.font_istruzioni = pygame.font.SysFont('Helvetica', dim_istruzioni, False, False)
-        self.font_about = pygame.font.SysFont('Helvetica', dim_about, False, True)
-        self.font_pausa = pygame.font.SysFont('Helvetica', dim_pausa, True, False)
+        self.font_attes = pygame.font.Font(self.font_path, dim_attesa)
+        self.font_istruzioni = pygame.font.Font(self.font_path, dim_istruzioni)
+        self.font_about = pygame.font.Font(self.font_path, dim_about)
+        self.font_pausa = pygame.font.Font(self.font_path, dim_pausa)
 
     def _aggiorna_slider_layout(self, scale: float) -> None:
         """Update slider layout based on scale factor."""
@@ -530,7 +551,7 @@ class Tachistostory:
     
     def get_font(self) -> pygame.font.Font:
         """Initialize the main font at base size."""
-        self.font = pygame.font.SysFont('Helvetica', self.base_font, bold=False, italic=False)
+        self.font = pygame.font.Font(self.font_path, self.base_font)
         return self.font
     
     def color(self) -> None:
@@ -740,8 +761,115 @@ class Tachistostory:
     # ========================================================================
     
     def load_assets(self) -> None:
-        """Load application assets (logo, icons, etc.)."""
-        self.logo_image = load_image_asset(os.path.join("assets", "Tachistostory_logo.png"))
+        """Load all application assets with error handling."""
+        print("[LOADING] Caricamento asset...")
+        
+        # Logo principale
+        try:
+            self.logo_image = load_image_asset(os.path.join("assets", "logo", "Tachistostory_logo.png"))
+            print("  ✓ Logo principale caricato")
+        except Exception as e:
+            print(f"  ⚠ Logo principale non trovato: {e}")
+            self.logo_image = None
+        
+        # Background menu iniziale
+        try:
+            self.bg_menu = load_image_asset(os.path.join("assets", "gfx", "bg", "bg_menu_table_book.png"))
+            print("  ✓ Background menu caricato")
+        except Exception as e:
+            print(f"  ⚠ Background menu non trovato: {e}")
+            self.bg_menu = self._create_placeholder_surface((800, 600), (50, 50, 100))
+        
+        # Background tavolo (può essere uguale al menu)
+        try:
+            self.bg_tavolo = load_image_asset(os.path.join("assets", "gfx", "bg", "bg_menu_table.png"))
+            print("  ✓ Background tavolo caricato")
+        except Exception as e:
+            print(f"  ⚠ Background tavolo non trovato, uso menu: {e}")
+            self.bg_tavolo = self.bg_menu  # Fallback al menu
+        
+        # Sprite libro chiuso
+        try:
+            self.sprite_libro_chiuso = load_image_asset(os.path.join("assets", "gfx", "book", "book_master_sheet.png"))
+            print("  ✓ Sprite libro chiuso caricato")
+        except Exception as e:
+            print(f"  ⚠ Sprite libro non trovato: {e}")
+            self.sprite_libro_chiuso = self._create_placeholder_surface((200, 300), (139, 69, 19))
+        
+        # Sprite sheet libro in apertura (estrai frames)
+        try:
+            book_sheet = load_image_asset(os.path.join("assets", "gfx", "book", "book_open_idle_64_sheet.png"))
+            self.book_frames = self._extract_sprite_frames(book_sheet, num_frames=4, layout="horizontal")
+            print(f"  ✓ {len(self.book_frames)} frame libro apertura estratti")
+        except Exception as e:
+            print(f"  ⚠ Sprite sheet apertura non trovato: {e}")
+            # Usa libro chiuso come fallback
+            if self.sprite_libro_chiuso:
+                self.book_frames = [self.sprite_libro_chiuso] * 4
+            else:
+                self.book_frames = [self._create_placeholder_surface((200, 300), (100, 50, 0)) for _ in range(4)]
+        
+        # Background libro aperto (per istruzioni)
+        try:
+            self.book_open_bg = load_image_asset(os.path.join("assets", "gfx", "book", "book_open_idle_64_sheet.png"))
+            # Prendi primo frame come background statico
+            if self.book_frames:
+                self.book_open_bg = self.book_frames[-1]  # Ultimo frame = libro completamente aperto
+            print("  ✓ Background libro aperto caricato")
+        except Exception as e:
+            print(f"  ⚠ Background libro aperto non trovato: {e}")
+            self.book_open_bg = self._create_placeholder_surface((600, 400), (255, 248, 220))
+        
+        print("[LOADING] Caricamento asset completato\n")
+    
+    def _create_placeholder_surface(self, size: Tuple[int, int], color: Tuple[int, int, int]) -> pygame.Surface:
+        """Create a colored placeholder surface when asset is missing."""
+        surface = pygame.Surface(size)
+        surface.fill(color)
+        # Aggiungi X rossa per indicare placeholder
+        pygame.draw.line(surface, (255, 0, 0), (0, 0), size, 3)
+        pygame.draw.line(surface, (255, 0, 0), (0, size[1]), (size[0], 0), 3)
+        return surface.convert()
+    
+    def _extract_sprite_frames(self, sheet: pygame.Surface, num_frames: int, layout: str = "horizontal") -> List[pygame.Surface]:
+        """Extract individual frames from a sprite sheet.
+        
+        Args:
+            sheet: The sprite sheet surface
+            num_frames: Number of frames to extract
+            layout: 'horizontal' or 'vertical' frame arrangement
+            
+        Returns:
+            List of individual frame surfaces
+        """
+        frames = []
+        sheet_w, sheet_h = sheet.get_size()
+        
+        if layout == "horizontal":
+            frame_w = sheet_w // num_frames
+            frame_h = sheet_h
+            for i in range(num_frames):
+                frame = sheet.subsurface((i * frame_w, 0, frame_w, frame_h))
+                frames.append(frame.copy().convert_alpha())
+        elif layout == "vertical":
+            frame_w = sheet_w
+            frame_h = sheet_h // num_frames
+            for i in range(num_frames):
+                frame = sheet.subsurface((0, i * frame_h, frame_w, frame_h))
+                frames.append(frame.copy().convert_alpha())
+        else:
+            # Grid layout (quadrato)
+            cols = int(num_frames ** 0.5)
+            rows = (num_frames + cols - 1) // cols
+            frame_w = sheet_w // cols
+            frame_h = sheet_h // rows
+            for i in range(num_frames):
+                row = i // cols
+                col = i % cols
+                frame = sheet.subsurface((col * frame_w, row * frame_h, frame_w, frame_h))
+                frames.append(frame.copy().convert_alpha())
+        
+        return frames
 
     def disegna_schermata_attesa(self) -> None:
         """
@@ -873,3 +1001,43 @@ class Tachistostory:
             top=win_h // 2
         )
         self.screen.blit(scritta_pausa, scritta_pausa_rect)
+
+
+    def disegna_menu_start(self) -> None:
+        """
+        Draw the initial menu screen (placeholder).
+        
+        Displays a dark background with "MENU" text.
+        """
+        if self.screen is None:
+            return
+            
+        self.screen.fill((39, 39, 39))
+        self.scrivi_testo_centrato("MENU")
+
+    def disegna_tavolo_libro_chiuso(self) -> None:
+        """
+        Draw the table with closed book screen (placeholder).
+        
+        Displays a colored background with "TABLE" text.
+        """
+        if self.screen is None:
+            return
+            
+        self.screen.fill((150, 0, 39))
+        self.scrivi_testo_centrato("TABLE")
+
+    def disegna_apertura_libro(self) -> None:
+        """
+        Draw the book opening animation screen (placeholder).
+        
+        Displays a black background with "ANIMATION" text.
+        """
+        if self.screen is None:
+            return
+            
+        self.screen.fill((0, 0, 0))
+        self.scrivi_testo_centrato("ANIMATION")
+
+
+    
