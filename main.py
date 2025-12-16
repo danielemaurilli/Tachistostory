@@ -189,6 +189,7 @@ def main():
                     elif event.key in (K_RETURN, K_KP_ENTER) and app.stato_presentazione == State.INTRO_TABLE:
                         app.stato_presentazione = State.INTRO_BOOK_OPEN
                         app.tempo_inizio_stato = pygame.time.get_ticks()
+                        app.book_animation_completed = False
                         continue
                     elif event.key in (K_RETURN, K_KP_ENTER) and app.stato_presentazione == State.INTRO_BOOK_OPEN:
                         app.stato_presentazione = State.FILE
@@ -282,6 +283,15 @@ def main():
             # GAME LOGIC & RENDERING
             # ====================================================================
             
+            if app.stato_presentazione == State.INTRO_TABLE:
+                actual = pygame.time.get_ticks()
+                elapsed = actual - app.tempo_inizio_stato
+                if elapsed > settings.INTRO_TABLE_DURATION:
+                    app.stato_presentazione = State.INTRO_BOOK_OPEN
+                    app.tempo_inizio_stato = pygame.time.get_ticks()
+                    app.book_animation_completed = False
+
+
             # Waiting mode (no file loaded) 
             if app.stato_presentazione in (State.MENU_START, State.INTRO_TABLE, State.INTRO_BOOK_OPEN):
                 # USA LO STATO CORRENTE, non sempre MENU_START

@@ -106,9 +106,13 @@ class Tachistostory:
         self.bg_tavolo: Optional[pygame.Surface] = None
         self.sprite_libro_chiuso: Optional[pygame.Surface] = None
         self.book_frames: List[pygame.Surface] = []
+        self.book_frames_scaled: List[pygame.Surface] = []
         self.book_open_bg: Optional[pygame.Surface] = None
         self.book_current_frame = 0
         self.book_animation_start = 0
+        self.book_frame_duration_ms = 220  # target ~25 FPS for a smoother opening
+        self.book_animation_completed = False
+        self.book_bottom_margin = -130  # distance from bottom for book rendering
         
         # Transition effects
         self.transition_active = False
@@ -196,6 +200,9 @@ class Tachistostory:
 
         # Layout size tracking
         self.last_layout_size: Tuple[int, int] = (self.screen_width, self.screen_height)
+
+        # Book sprite
+        self.closed_sprite_book = None
 
     # ========================================================================
     # WINDOW SETUP
@@ -419,6 +426,7 @@ class Tachistostory:
         self.word_to_phrase_map = []
         self.in_pausa = False
         self.mostra_errore = False
+        self.book_animation_completed = False
 
     def helper_sentences(self, full_text):
         """
@@ -520,6 +528,7 @@ class Tachistostory:
         self._aggiorna_fonts(scale)
         self._aggiorna_slider_layout(scale)
         self._scala_background_intro()  # AGGIUNGI QUESTA CHIAMATA
+        self._scale_book_frames_for_screen()
 
     def _scale_image_cover(self, image: pygame.Surface, target_width: int, target_height: int) -> pygame.Surface:
         """Scala un'immagine per coprire l'area target mantenendo aspect ratio (cover mode).
@@ -577,6 +586,33 @@ class Tachistostory:
         result.blit(scaled, (x_offset, y_offset))
         
         return result
+    
+    def _scale_surface_to_fit(self, surface: pygame.Surface, max_width: int, max_height: int) -> pygame.Surface:
+        """Scale a surface to fit within max_width/max_height keeping aspect ratio (contain)."""
+        src_w, src_h = surface.get_size()
+        if src_w == 0 or src_h == 0:
+            return surface
+        scale = min(max_width / src_w, max_height / src_h)
+        if scale <= 0:
+            return surface
+        new_size = (max(1, int(src_w * scale)), max(1, int(src_h * scale)))
+        return pygame.transform.smoothscale(surface, new_size)
+
+    def _scale_book_frames_for_screen(self) -> None:
+        """Pre-scale book frames once per layout to keep animation stable and sized up."""
+        if not self.book_frames:
+            return
+        # Oversized book: allow up to 125% of screen to make it feel bigger
+        max_w = int(self.screen_width * 1.25)
+        max_h = int(self.screen_height * 1.25)
+        scaled_frames: List[pygame.Surface] = []
+        for frame in self.book_frames:
+            scaled = self._scale_surface_to_fit(frame, max_w, max_h)
+            scaled.set_colorkey((0, 0, 0))
+            scaled_frames.append(scaled)
+        self.book_frames_scaled = scaled_frames
+        if self.book_frames_scaled:
+            self.sprite_libro_chiuso = self.book_frames_scaled[0]
 
     def _scala_background_intro(self) -> None:
         """Scala i background intro alle dimensioni correnti della finestra."""
@@ -886,26 +922,31 @@ class Tachistostory:
             if hasattr(self, '_bg_menu_original'):
                 self._bg_tavolo_original = self._bg_menu_original
         
-        # Sprite libro chiuso
+        # Sprite libro chiuso e animazione (book_master_sheet.png)
         try:
-            self.sprite_libro_chiuso = load_image_asset(os.path.join("assets", "gfx", "book", "book_master_sheet.png"))
-            print("  ✓ Sprite libro chiuso caricato")
+            book_sheet = load_image_asset(os.path.join("assets", "gfx", "book", "book_master_sheet.png"))
+            
+            # Usa il metodo esistente per estrarre i frame
+            self.book_frames = self._extract_sprite_frames(
+                book_sheet, 
+                num_frames=None,     # Auto-calcola frame
+                layout="horizontal"
+            )
+            
+            # Applica trasparenza al nero su tutti i frame
+            for frame in self.book_frames:
+                frame.set_colorkey((0, 0, 0))
+            
+            # Primo frame per libro chiuso statico
+            self.sprite_libro_chiuso = self.book_frames[0]
+            self._scale_book_frames_for_screen()
+            print(f"  ✓ Sprite libro caricato ({len(self.book_frames)} frame estratti)")
         except Exception as e:
             print(f"  ⚠ Sprite libro non trovato: {e}")
-            self.sprite_libro_chiuso = self._create_placeholder_surface((200, 300), (139, 69, 19))
-        
-        # Sprite sheet libro in apertura (estrai frames)
-        try:
-            book_sheet = load_image_asset(os.path.join("assets", "gfx", "book", "book_open_idle_64_sheet.png"))
-            self.book_frames = self._extract_sprite_frames(book_sheet, num_frames=4, layout="horizontal")
-            print(f"  ✓ {len(self.book_frames)} frame libro apertura estratti")
-        except Exception as e:
-            print(f"  ⚠ Sprite sheet apertura non trovato: {e}")
-            # Usa libro chiuso come fallback
-            if self.sprite_libro_chiuso:
-                self.book_frames = [self.sprite_libro_chiuso] * 4
-            else:
-                self.book_frames = [self._create_placeholder_surface((200, 300), (100, 50, 0)) for _ in range(4)]
+            placeholder = self._create_placeholder_surface((640, 640), (139, 69, 19))
+            self.sprite_libro_chiuso = placeholder
+            self.book_frames = [placeholder] * 17
+            self._scale_book_frames_for_screen()
         
         # Background libro aperto (per istruzioni)
         try:
@@ -932,7 +973,7 @@ class Tachistostory:
         pygame.draw.line(surface, (255, 0, 0), (0, size[1]), (size[0], 0), 3)
         return surface.convert()
     
-    def _extract_sprite_frames(self, sheet: pygame.Surface, num_frames: int, layout: str = "horizontal") -> List[pygame.Surface]:
+    def _extract_sprite_frames(self, sheet: pygame.Surface, num_frames: Optional[int] = None, layout: str = "horizontal") -> List[pygame.Surface]:
         """Extract individual frames from a sprite sheet.
         
         Args:
@@ -943,14 +984,24 @@ class Tachistostory:
         Returns:
             List of individual frame surfaces
         """
+        start_frame = 0
         frames = []
         sheet_w, sheet_h = sheet.get_size()
-        
+        # Auto-detect frame count if not provided (assumes square frames on a strip)
+        if num_frames is None:
+            if layout == "horizontal":
+                num_frames = max(1, sheet_w // sheet_h)
+            elif layout == "vertical":
+                num_frames = max(1, sheet_h // sheet_w)
+            else:
+                num_frames = 1  # fallback
+
         if layout == "horizontal":
             frame_w = sheet_w // num_frames
             frame_h = sheet_h
-            for i in range(num_frames):
-                frame = sheet.subsurface((i * frame_w, 0, frame_w, frame_h))
+            for i in range(start_frame, start_frame + num_frames):
+                x = i * frame_w
+                frame = sheet.subsurface((x, 0, frame_w, frame_h))
                 frames.append(frame.copy().convert_alpha())
         elif layout == "vertical":
             frame_w = sheet_w
@@ -969,8 +1020,13 @@ class Tachistostory:
                 col = i % cols
                 frame = sheet.subsurface((col * frame_w, row * frame_h, frame_w, frame_h))
                 frames.append(frame.copy().convert_alpha())
-        
-        return frames
+
+        # Rimuovi eventuali frame vuoti (trasparenti) in coda per evitare sparizioni finali
+        non_empty_frames = [
+            f for f in frames
+            if f.get_bounding_rect(min_alpha=1).width > 0 and f.get_bounding_rect(min_alpha=1).height > 0
+        ]
+        return non_empty_frames or frames
 
     def disegna_schermata_attesa(self) -> None:
         """
@@ -1155,20 +1211,53 @@ class Tachistostory:
         """
         if self.screen is None:
             return
-            
-        self.screen.fill((150, 0, 39))
-        self.scrivi_testo_centrato("TABLE")
+        self.screen.blit(self.bg_tavolo, (0, 0))
+
+        # Disegna lo sprite del libro chiuso
+        libro = self.book_frames_scaled[0] if self.book_frames_scaled else self.sprite_libro_chiuso
+        if libro:
+            rect = libro.get_rect(
+                centerx = self.screen_width // 2,
+                bottom = self.screen_height - self.book_bottom_margin
+            )
+            self.screen.blit(libro, rect)
+
 
     def disegna_apertura_libro(self) -> None:
         """
-        Draw the book opening animation screen (placeholder).
+        Draw the book opening animation screen.
         
-        Displays a black background with "ANIMATION" text.
+        Animates through book_frames to show book opening sequence.
         """
         if self.screen is None:
             return
+        
+        # Background tavolo (sempre presente)
+        self.screen.blit(self.bg_tavolo, (0, 0))
+        
+        frames = self.book_frames_scaled or self.book_frames
+        if not frames:
+            return
+
+        # Calcola quale frame mostrare in base al tempo (o blocca sull'ultimo)
+        if self.book_animation_completed:
+            frame_index = len(frames) - 1
+        else:
+            tempo_corrente = pygame.time.get_ticks()
+            tempo_trascorso = tempo_corrente - self.tempo_inizio_stato
             
-        self.screen.fill((0, 0, 0))
-        self.scrivi_testo_centrato("ANIMATION")
-
-
+            # Durata frame fissa per maggiore fluidità
+            frame_duration = self.book_frame_duration_ms  # ms per frame
+            frame_index = int(tempo_trascorso / frame_duration)
+            
+            if frame_index >= len(frames) - 1:
+                frame_index = len(frames) - 1
+                self.book_animation_completed = True
+        
+        # Mostra il frame corrente scalato a dimensioni più piccole
+        current_frame = frames[frame_index]
+        frame_rect = current_frame.get_rect(
+            centerx=self.screen_width // 2,
+            bottom=self.screen_height - self.book_bottom_margin
+        )
+        self.screen.blit(current_frame, frame_rect)
