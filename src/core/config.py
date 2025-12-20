@@ -1,0 +1,102 @@
+"""
+Centralized configuration module.
+
+Keeps all timing, layout, color, and asset path settings in one place.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Tuple
+import pygame
+
+import settings
+
+
+pygame.init()
+_SCREEN_INFO = pygame.display.Info()
+
+
+@dataclass
+class DisplayConfig:
+    base_width: int = 1920
+    base_height: int = 1080
+    min_width: int = settings.MIN_WIDTH
+    min_height: int = settings.MIN_HEIGHT
+    max_width: int = _SCREEN_INFO.current_w
+    max_height: int = _SCREEN_INFO.current_h
+    fullscreen_menubar_margin: int = 50
+
+    logo_width_ratio: float = 0.4
+    slider_margin_ratio: float = 0.1
+    slider_width_ratio: float = 0.8
+
+    bg_color: Tuple[int, int, int] = (210, 245, 130)
+    menu_bg_color: Tuple[int, int, int] = (0, 157, 198)
+    error_color: Tuple[int, int, int] = (200, 30, 30)
+    text_color: Tuple[int, int, int] = (39, 39, 39)
+    prompt_color: Tuple[int, int, int] = (242, 214, 75)
+
+    slider_knob_color: Tuple[int, int, int] = (7, 165, 224)
+    slider_track_color: Tuple[int, int, int] = (39, 39, 39)
+
+
+@dataclass
+class TimingConfig:
+    word_duration_default: int = 220
+    word_duration_min: int = settings.DURATA_MIN
+    word_duration_max: int = settings.DURATA_MAX
+    mask_duration: int = 400
+
+    logo_fade_duration: int = 3500
+    intro_table_duration: int = settings.INTRO_TABLE_DURATION
+    book_frame_duration: int = 220
+
+
+@dataclass
+class FontConfig:
+    font_path: str = "assets/fonts/Cinzel-VariableFont_wght.ttf"
+    main_size: int = 60
+    slider_label_size: int = 14
+    menu_size: int = 25
+    about_size: int = 16
+    instruction_size: int = 28
+    pause_size: int = 60
+
+
+@dataclass
+class SliderConfig:
+    initial_x: int = 100
+    initial_y: int = 50
+    base_width: int = 400
+    width_scale_factor: float = 0.7
+    knob_radius: int = 12
+    track_height: int = 4
+    tick_factors: Tuple[float, ...] = (0.0, 0.25, 0.5, 0.75, 1.0)
+
+
+@dataclass
+class PathConfig:
+    logo_title: str = "assets/logo/tachistostory_title.png"
+    bg_menu_table_book: str = "assets/gfx/bg/bg_menu_table_book.png"
+    bg_menu_table: str = "assets/gfx/bg/bg_menu_table.png"
+    book_master_sheet: str = "assets/gfx/book/book_master_sheet.png"
+    book_open_bg: str = "assets/gfx/book/book_open_idle_64_sheet.png"
+
+
+@dataclass
+class BookConfig:
+    bottom_margin: int = -130
+
+
+@dataclass
+class AppConfig:
+    display: DisplayConfig = field(default_factory=DisplayConfig)
+    timing: TimingConfig = field(default_factory=TimingConfig)
+    font: FontConfig = field(default_factory=FontConfig)
+    slider: SliderConfig = field(default_factory=SliderConfig)
+    paths: PathConfig = field(default_factory=PathConfig)
+    book: BookConfig = field(default_factory=BookConfig)
+
+
+config = AppConfig()
