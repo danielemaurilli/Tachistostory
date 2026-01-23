@@ -40,6 +40,7 @@ class DisplayConfig:
     slider_knob_color: Tuple[int, int, int] = (7, 165, 224)
     slider_track_color: Tuple[int, int, int] = (39, 39, 39)
 
+    color_key: Tuple[int, int, int] = (0,0,0)
 
 @dataclass
 class TimingConfig:
@@ -51,15 +52,16 @@ class TimingConfig:
     logo_fade_duration: int = 3500
     intro_table_duration: int = settings.INTRO_TABLE_DURATION
     book_frame_duration: int = 220
+    state_fade_duration: int = 1600
 
 
 @dataclass
 class FontConfig:
-    font_path: str = "assets/fonts/Cinzel-VariableFont_wght.ttf"
-    main_size: int = 60
-    slider_label_size: int = 14
-    menu_size: int = 25
-    about_size: int = 16
+    font_path: str = "assets/fonts/static/Cinzel-SemiBold.ttf"
+    main_size: int = 70
+    slider_label_size: int = 20
+    menu_size: int = 40
+    about_size: int = 22
     instruction_size: int = 28
     pause_size: int = 60
 
@@ -80,6 +82,7 @@ class PathConfig:
     logo_title: str = "assets/logo/tachistostory_title.png"
     bg_menu_table_book: str = "assets/gfx/bg/bg_menu_table_book.png"
     bg_menu_table: str = "assets/gfx/bg/bg_menu_table.png"
+    bg_istructions: str = "assets/gfx/bg/bg_istructions.png"
     book_master_sheet: str = "assets/gfx/book/book_master_sheet.png"
     book_open_bg: str = "assets/gfx/book/book_open_idle_64_sheet.png"
 

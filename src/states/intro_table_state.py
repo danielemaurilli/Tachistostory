@@ -27,12 +27,12 @@ class IntroTableState(BaseState):
         for event in events:
             if event.type == pygame.KEYDOWN:
                 if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
-                    self.state_machine.change_state("intro_book_open")
+                    self.state_machine.change_state_immediate("intro_book_open")
 
     def update(self, delta_time: float) -> None:
         elapsed = pygame.time.get_ticks() - self.start_time
         if elapsed > config.timing.intro_table_duration:
-            self.state_machine.change_state("intro_book_open")
+            self.state_machine.change_state_immediate("intro_book_open")
 
     def render(self, screen: pygame.Surface) -> None:
         """Render table with closed book."""

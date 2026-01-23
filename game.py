@@ -49,12 +49,16 @@ class Tachistostory:
         self.bg_color = config.display.bg_color
         self.menu_bg_color = config.display.menu_bg_color
         self.error_color = config.display.error_color
+        self.prompt_color = config.display.prompt_color
+        self.text_color = config.display.text_color
+        self.color_key = config.display.color_key
 
         # ==================== ASSETS ====================
         self.logo_image: Optional[pygame.Surface] = None
         self.logo_icon: Optional[pygame.Surface] = None
         self.bg_menu: Optional[pygame.Surface] = None
         self.bg_tavolo: Optional[pygame.Surface] = None
+        self.bg_istructions: Optional[pygame.Surface] = None
         self.book_frames: List[pygame.Surface] = []
         self.book_frames_scaled: List[pygame.Surface] = []
         self.sprite_libro_chiuso: Optional[pygame.Surface] = None
@@ -106,6 +110,14 @@ class Tachistostory:
 
         # ==================== STATE MACHINE ====================
         self.state_machine = None
+
+        # ==================== STATE TRANSITION FADE ====================
+        self.fade_enabled = True
+        self.fade_active = False
+        self.fade_direction = "out"
+        self.fade_alpha = 0.0
+        self.fade_next_state: Optional[str] = None
+        self.fade_duration_ms = config.timing.state_fade_duration
 
     # ========================================================================
     # WINDOW MANAGEMENT
@@ -190,9 +202,11 @@ class Tachistostory:
 
     def _aggiorna_slider_layout(self, scale: float) -> None:
         """Update slider layout based on scale factor."""
-        self.x_slider = int(self.screen_width * config.display.slider_margin_ratio)
-        self.slider_width = int(self.screen_width * config.display.slider_width_ratio)
-        self.y_slider = int(self.screen_height * config.display.slider_margin_ratio)
+        base_x = int(self.screen_width * config.display.slider_margin_ratio)
+        base_width = int(self.screen_width * config.display.slider_width_ratio)
+        self.slider_width = int(base_width * 0.60)
+        self.x_slider = base_x + int((base_width - self.slider_width) / 2)
+        self.y_slider = int(self.screen_height * config.display.slider_margin_ratio) + int(self.screen_height * 0.15)
         self.pomello_radius = int(12 * scale)
         self._update_slider_position()
 
@@ -212,6 +226,10 @@ class Tachistostory:
         if hasattr(self, "_bg_tavolo_original"):
             self.bg_tavolo = scale_image_cover(
                 self._bg_tavolo_original, self.screen_width, self.screen_height
+            )
+        if hasattr(self, "_bg_istructions_original"):
+            self.bg_istructions = scale_image_cover(
+                self._bg_istructions_original, self.screen_width, self.screen_height
             )
         if hasattr(self, "_book_open_original"):
             self.book_open_bg = scale_image_cover(
@@ -354,6 +372,19 @@ class Tachistostory:
             self.bg_tavolo = self.bg_menu
             if hasattr(self, "_bg_menu_original"):
                 self._bg_tavolo_original = self._bg_menu_original
+
+        # Background istructions
+        try:
+            self._bg_istructions_original = load_image_asset(config.paths.bg_istructions)
+            self.bg_istructions = scale_image_cover(
+                self._bg_istructions_original, self.screen_width, self.screen_height
+            )
+            print("  ✓ Background istruzioni caricato")
+        except Exception as e:
+            print(f"  ⚠ Background istruzioni non trovato: {e}")
+            self.bg_istructions = self.bg_menu
+            if hasattr(self, "_bg_menu_original"):
+                self._bg_istructions_original = self._bg_menu_original
 
         # Book sprite sheet
         try:
@@ -508,12 +539,55 @@ class Tachistostory:
             text_surf = self.font_attes.render(msg, True, self.error_color)
             text_rect = text_surf.get_rect(centerx=win_w // 2, bottom=win_h - win_h // 3)
             self.screen.blit(text_surf, text_rect)
-            self.updating()
-            clock.tick(60)
             return True
 
         self.mostra_errore = False
         return False
+
+    # ========================================================================
+    # STATE TRANSITION FADE
+    # ========================================================================
+
+    def request_state_change(self, name: str) -> bool:
+        """Request a state change with fade transition. Returns True if handled."""
+        if not self.fade_enabled or self.fade_duration_ms <= 0:
+            return False
+        if self.fade_active:
+            self.fade_next_state = name
+            return True
+        self.fade_active = True
+        self.fade_direction = "out"
+        self.fade_alpha = 0.0
+        self.fade_next_state = name
+        return True
+
+    def _update_fade(self, delta_time: float) -> None:
+        """Update fade alpha and switch states at full black."""
+        if not self.fade_active or self.fade_duration_ms <= 0:
+            return
+
+        step = 255 * (delta_time * 1000.0) / self.fade_duration_ms
+
+        if self.fade_direction == "out":
+            self.fade_alpha = min(255.0, self.fade_alpha + step)
+            if self.fade_alpha >= 255.0:
+                if self.state_machine and self.fade_next_state:
+                    self.state_machine._change_state_immediate(self.fade_next_state)
+                self.fade_direction = "in"
+        else:
+            self.fade_alpha = max(0.0, self.fade_alpha - step)
+            if self.fade_alpha <= 0.0:
+                self.fade_active = False
+                self.fade_next_state = None
+
+    def _render_fade_overlay(self, screen: pygame.Surface) -> None:
+        """Render black fade overlay if active."""
+        if not self.fade_active:
+            return
+        overlay = pygame.Surface(screen.get_size())
+        overlay.fill((0, 0, 0))
+        overlay.set_alpha(int(self.fade_alpha))
+        screen.blit(overlay, (0, 0))
 
     # ========================================================================
     # STATE MACHINE
@@ -526,6 +600,7 @@ class Tachistostory:
             FileSelectionState,
             InstructionState,
             IntroBookOpenState,
+            IntroBookIdleState,
             IntroTableState,
             MenuStartState,
             PresentationState,
@@ -535,6 +610,7 @@ class Tachistostory:
         self.state_machine.add_state("menu_start", MenuStartState(self.state_machine))
         self.state_machine.add_state("intro_table", IntroTableState(self.state_machine))
         self.state_machine.add_state("intro_book_open", IntroBookOpenState(self.state_machine))
+        self.state_machine.add_state("intro_book_idle", IntroBookIdleState(self.state_machine))
         self.state_machine.add_state("file_selection", FileSelectionState(self.state_machine))
         self.state_machine.add_state("instruction", InstructionState(self.state_machine))
         self.state_machine.add_state("presentation", PresentationState(self.state_machine))
@@ -569,12 +645,20 @@ class Tachistostory:
                 self.handle_global_events(events)
                 self.state_machine.handle_events(events)
 
+                delta_time = clock.get_time() / 1000.0
+                self._update_fade(delta_time)
+
                 if self._render_error_overlay(clock):
+                    if self.screen:
+                        self._render_fade_overlay(self.screen)
+                    self.updating()
+                    clock.tick(60)
                     continue
 
-                delta_time = clock.get_time() / 1000.0
                 self.state_machine.update(delta_time)
                 self.state_machine.render()
+                if self.screen:
+                    self._render_fade_overlay(self.screen)
                 self.updating()
                 clock.tick(60)
 

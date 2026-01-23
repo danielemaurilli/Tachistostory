@@ -79,7 +79,7 @@ class MenuStartState(BaseState):
                 cycle = pygame.time.get_ticks() % 1000
                 if cycle < 500:
                     prompt = self.app.font_attes.render(
-                        "Premi INVIO per iniziare",
+                        "Press ENTER to start",
                         True,
                         config.display.prompt_color
                     )

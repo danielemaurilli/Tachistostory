@@ -35,6 +35,24 @@ class StateMachine:
             return
         if self._current_state is self._states[name]:
             return
+        if self._current_state is None:
+            self._change_state_immediate(name)
+            return
+        if hasattr(self.app, "request_state_change"):
+            if self.app.request_state_change(name):
+                return
+        self._change_state_immediate(name)
+
+    def change_state_immediate(self, name: str) -> None:
+        """Change state without fade transition."""
+        if name not in self._states:
+            print(f"Warning: state '{name}' not found")
+            return
+        if self._current_state is self._states[name]:
+            return
+        self._change_state_immediate(name)
+
+    def _change_state_immediate(self, name: str) -> None:
         if self._current_state is not None:
             self._current_state.on_exit()
         self._current_state = self._states[name]
