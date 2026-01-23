@@ -30,14 +30,22 @@ class FileSelectionState(BaseState):
 
     def render(self, screen: pygame.Surface) -> None:
         """Render file selection/drop screen."""
-        screen.fill(self.app.menu_bg_color)
+        # Draw background
+        if self.app.bg_istructions:
+            screen.blit(self.app.bg_istructions, (0, 0))
+        else:
+            screen.fill(self.app.menu_bg_color)
         
         win_w, win_h = screen.get_size()
         
-        prompt = self.app.font_attes.render(
-            "Drag a .txt or .doc/.docx file here to start",
-            True,
-            self.app.bg_color
-        )
-        prompt_rect = prompt.get_rect(center=(win_w // 2, win_h // 2))
-        screen.blit(prompt, prompt_rect)
+         # Blinking "Press ENTER" text after fade complete
+        cycle = pygame.time.get_ticks() % 1000
+        if cycle < 500:
+            prompt = self.app.font_attes.render(
+                "Drag a .txt or .doc/.docx file here to start",
+                True,
+                self.app.text_color
+            )
+            prompt.set_colorkey((0, 0, 0))
+            prompt_rect = prompt.get_rect(center=(win_w // 2, win_h // 2))
+            screen.blit(prompt, prompt_rect)

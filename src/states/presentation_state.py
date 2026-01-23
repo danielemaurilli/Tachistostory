@@ -120,7 +120,10 @@ class PresentationState(BaseState):
             return
 
         # Background
-        screen.fill(self.app.bg_color)
+        if self.app.bg_istructions:
+            screen.blit(self.app.bg_istructions, (0, 0))
+        else:
+            screen.fill(self.app.bg_color)
 
         # Slider
         self._render_slider(screen)
@@ -144,13 +147,15 @@ class PresentationState(BaseState):
         """Render pause overlay."""
         screen.fill(self.app.menu_bg_color)
         win_w, win_h = screen.get_size()
-        pause_surf = self.app.font_pausa.render("PAUSE", True, self.app.bg_color)
+        pause_surf = self.app.font_pausa.render("PAUSE", True, self.app.text_color)
+        pause_surf.set_colorkey(self.app.color_key)
         pause_rect = pause_surf.get_rect(center=(win_w // 2, win_h // 2))
         screen.blit(pause_surf, pause_rect)
 
     def _render_centered_text(self, screen: pygame.Surface, text: str) -> None:
         """Render text centered on screen."""
         text_surf = self.app.font.render(text, True, config.display.text_color)
+        text_surf.set_colorkey((self.app.color_key))
         text_rect = text_surf.get_rect(
             center=(self.app.screen_width // 2, self.app.screen_height // 2)
         )
@@ -181,6 +186,7 @@ class PresentationState(BaseState):
 
             # Duration label
             label = self.app.font_ms.render(f"{int(duration)} ms", True, config.display.text_color)
+            label.set_colorkey(self.app.color_key)
             label_rect = label.get_rect(centerx=x_tick, top=self.app.y_slider + 20)
             screen.blit(label, label_rect)
 
@@ -197,9 +203,11 @@ class PresentationState(BaseState):
         human_index = self.app.indice_parola + 1
         total = len(self.app.lista_parole)
         text_surf = self.app.font.render(f"Word: {human_index}/{total}", True, config.display.text_color)
+        text_surf.set_colorkey(self.app.color_key)
+        text_surf.set_alpha(230)
         text_rect = text_surf.get_rect(
             centerx=self.app.screen_width // 2 - 250,
-            bottom=self.app.screen_height - 20,
+            bottom=self.app.screen_height - 50,
         )
         screen.blit(text_surf, text_rect)
 
@@ -208,17 +216,21 @@ class PresentationState(BaseState):
         total = self.app.phrases_total
         phrases = (self.app.phrases_index + 1) if total > 0 else 0
         text_surf = self.app.font.render(f"Phrases: {phrases}/{total}", True, config.display.text_color)
+        text_surf.set_colorkey(self.app.color_key)
+        text_surf.set_alpha(230)
         text_rect = text_surf.get_rect(
             centerx=self.app.screen_width // 2 + 250,
-            bottom=self.app.screen_height - 20,
+            bottom=self.app.screen_height - 50,
         )
         screen.blit(text_surf, text_rect)
 
     def _render_end_panel(self, screen: pygame.Surface) -> None:
         """Render end of words message."""
         text_surf = self.app.font.render("The words are ended", True, config.display.text_color)
+        text_surf.set_colorkey(self.app.color_key)
+        text_surf.set_alpha(230)
         text_rect = text_surf.get_rect(
             centerx=self.app.screen_width // 2,
-            bottom=self.app.screen_height - 20,
+            bottom=self.app.screen_height - 50,
         )
         screen.blit(text_surf, text_rect)

@@ -49,12 +49,16 @@ class Tachistostory:
         self.bg_color = config.display.bg_color
         self.menu_bg_color = config.display.menu_bg_color
         self.error_color = config.display.error_color
+        self.prompt_color = config.display.prompt_color
+        self.text_color = config.display.text_color
+        self.color_key = config.display.color_key
 
         # ==================== ASSETS ====================
         self.logo_image: Optional[pygame.Surface] = None
         self.logo_icon: Optional[pygame.Surface] = None
         self.bg_menu: Optional[pygame.Surface] = None
         self.bg_tavolo: Optional[pygame.Surface] = None
+        self.bg_istructions: Optional[pygame.Surface] = None
         self.book_frames: List[pygame.Surface] = []
         self.book_frames_scaled: List[pygame.Surface] = []
         self.sprite_libro_chiuso: Optional[pygame.Surface] = None
@@ -190,9 +194,11 @@ class Tachistostory:
 
     def _aggiorna_slider_layout(self, scale: float) -> None:
         """Update slider layout based on scale factor."""
-        self.x_slider = int(self.screen_width * config.display.slider_margin_ratio)
-        self.slider_width = int(self.screen_width * config.display.slider_width_ratio)
-        self.y_slider = int(self.screen_height * config.display.slider_margin_ratio)
+        base_x = int(self.screen_width * config.display.slider_margin_ratio)
+        base_width = int(self.screen_width * config.display.slider_width_ratio)
+        self.slider_width = int(base_width * 0.60)
+        self.x_slider = base_x + int((base_width - self.slider_width) / 2)
+        self.y_slider = int(self.screen_height * config.display.slider_margin_ratio) + int(self.screen_height * 0.15)
         self.pomello_radius = int(12 * scale)
         self._update_slider_position()
 
@@ -212,6 +218,10 @@ class Tachistostory:
         if hasattr(self, "_bg_tavolo_original"):
             self.bg_tavolo = scale_image_cover(
                 self._bg_tavolo_original, self.screen_width, self.screen_height
+            )
+        if hasattr(self, "_bg_istructions_original"):
+            self.bg_istructions = scale_image_cover(
+                self._bg_istructions_original, self.screen_width, self.screen_height
             )
         if hasattr(self, "_book_open_original"):
             self.book_open_bg = scale_image_cover(
@@ -354,6 +364,19 @@ class Tachistostory:
             self.bg_tavolo = self.bg_menu
             if hasattr(self, "_bg_menu_original"):
                 self._bg_tavolo_original = self._bg_menu_original
+
+        # Background istructions
+        try:
+            self._bg_istructions_original = load_image_asset(config.paths.bg_istructions)
+            self.bg_istructions = scale_image_cover(
+                self._bg_istructions_original, self.screen_width, self.screen_height
+            )
+            print("  ✓ Background istruzioni caricato")
+        except Exception as e:
+            print(f"  ⚠ Background istruzioni non trovato: {e}")
+            self.bg_istructions = self.bg_menu
+            if hasattr(self, "_bg_menu_original"):
+                self._bg_istructions_original = self._bg_menu_original
 
         # Book sprite sheet
         try:
@@ -526,6 +549,7 @@ class Tachistostory:
             FileSelectionState,
             InstructionState,
             IntroBookOpenState,
+            IntroBookIdleState,
             IntroTableState,
             MenuStartState,
             PresentationState,
@@ -535,6 +559,7 @@ class Tachistostory:
         self.state_machine.add_state("menu_start", MenuStartState(self.state_machine))
         self.state_machine.add_state("intro_table", IntroTableState(self.state_machine))
         self.state_machine.add_state("intro_book_open", IntroBookOpenState(self.state_machine))
+        self.state_machine.add_state("intro_book_idle", IntroBookIdleState(self.state_machine))
         self.state_machine.add_state("file_selection", FileSelectionState(self.state_machine))
         self.state_machine.add_state("instruction", InstructionState(self.state_machine))
         self.state_machine.add_state("presentation", PresentationState(self.state_machine))
