@@ -33,6 +33,15 @@ class IntroBookIdleState(BaseState):
         self.zoom_scale_end: float = 2.5  # Zoom factor
         self.zoom_completed: bool = False
 
+        # Fade timing
+        self.entry_fade_duration: int = 500
+        self.exit_fade_duration: int = 500
+        self.exit_fade_threshold: float = 0.85
+        self.entry_fade_start: int = 0
+        self.exit_fade_active: bool = False
+        self.exit_fade_start: int = 0
+        self.pending_exit_state: str | None = None
+
     @property
     def app(self):
         return self.state_machine.app
@@ -45,6 +54,10 @@ class IntroBookIdleState(BaseState):
         self.zoom_start_time = 0
         self.zoom_progress = 0.0
         self.zoom_completed = False
+        self.entry_fade_start = pygame.time.get_ticks()
+        self.exit_fade_start = 0
+        self.exit_fade_active = False
+        self.pending_exit_state = None
         
         # Load and scale the book image
         self._load_book_image()
@@ -78,7 +91,7 @@ class IntroBookIdleState(BaseState):
             if event.type == pygame.KEYDOWN:
                 if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
                     # Skip to file selection
-                    self.state_machine.change_state("file_selection")
+                    self._start_exit_fade("file_selection")
 
     def update(self, delta_time: float) -> None:
         current_time = pygame.time.get_ticks()
@@ -98,7 +111,12 @@ class IntroBookIdleState(BaseState):
             
             if self.zoom_progress >= 1.0:
                 self.zoom_completed = True
-                self.state_machine.change_state("file_selection")
+                self._start_exit_fade("file_selection")
+
+        if self.exit_fade_active and self.pending_exit_state:
+            exit_elapsed = pygame.time.get_ticks() - self.exit_fade_start
+            if exit_elapsed >= self.exit_fade_duration:
+                self.state_machine.change_state_immediate(self.pending_exit_state)
 
     def render(self, screen: pygame.Surface) -> None:
         """Render book image with optional zoom effect."""
@@ -129,3 +147,36 @@ class IntroBookIdleState(BaseState):
         else:
             # Static phase - blit fullscreen image at (0, 0)
             screen.blit(self.book_image_scaled, (0, 0))
+
+        self._render_fade_overlay(screen)
+
+    def _start_exit_fade(self, next_state: str) -> None:
+        if self.exit_fade_active:
+            return
+        self.exit_fade_active = True
+        self.exit_fade_start = pygame.time.get_ticks()
+        self.pending_exit_state = next_state
+
+    def _render_fade_overlay(self, screen: pygame.Surface) -> None:
+        now = pygame.time.get_ticks()
+        alpha = 0
+
+        # Entry fade: black -> transparent before zoom starts
+        if not self.zoom_phase:
+            entry_elapsed = now - self.entry_fade_start
+            if entry_elapsed < self.entry_fade_duration:
+                alpha = int(255 * (1 - entry_elapsed / self.entry_fade_duration))
+
+        # Exit fade: transparent -> black near end of zoom
+        if self.zoom_phase and not self.exit_fade_active:
+            if self.zoom_progress >= self.exit_fade_threshold:
+                self._start_exit_fade("file_selection")
+
+        if self.exit_fade_active:
+            exit_elapsed = now - self.exit_fade_start
+            alpha = max(alpha, int(255 * min(exit_elapsed / self.exit_fade_duration, 1.0)))
+
+        if alpha > 0:
+            overlay = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, alpha))
+            screen.blit(overlay, (0, 0))

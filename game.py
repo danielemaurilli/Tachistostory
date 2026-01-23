@@ -111,6 +111,14 @@ class Tachistostory:
         # ==================== STATE MACHINE ====================
         self.state_machine = None
 
+        # ==================== STATE TRANSITION FADE ====================
+        self.fade_enabled = True
+        self.fade_active = False
+        self.fade_direction = "out"
+        self.fade_alpha = 0.0
+        self.fade_next_state: Optional[str] = None
+        self.fade_duration_ms = config.timing.state_fade_duration
+
     # ========================================================================
     # WINDOW MANAGEMENT
     # ========================================================================
@@ -531,12 +539,55 @@ class Tachistostory:
             text_surf = self.font_attes.render(msg, True, self.error_color)
             text_rect = text_surf.get_rect(centerx=win_w // 2, bottom=win_h - win_h // 3)
             self.screen.blit(text_surf, text_rect)
-            self.updating()
-            clock.tick(60)
             return True
 
         self.mostra_errore = False
         return False
+
+    # ========================================================================
+    # STATE TRANSITION FADE
+    # ========================================================================
+
+    def request_state_change(self, name: str) -> bool:
+        """Request a state change with fade transition. Returns True if handled."""
+        if not self.fade_enabled or self.fade_duration_ms <= 0:
+            return False
+        if self.fade_active:
+            self.fade_next_state = name
+            return True
+        self.fade_active = True
+        self.fade_direction = "out"
+        self.fade_alpha = 0.0
+        self.fade_next_state = name
+        return True
+
+    def _update_fade(self, delta_time: float) -> None:
+        """Update fade alpha and switch states at full black."""
+        if not self.fade_active or self.fade_duration_ms <= 0:
+            return
+
+        step = 255 * (delta_time * 1000.0) / self.fade_duration_ms
+
+        if self.fade_direction == "out":
+            self.fade_alpha = min(255.0, self.fade_alpha + step)
+            if self.fade_alpha >= 255.0:
+                if self.state_machine and self.fade_next_state:
+                    self.state_machine._change_state_immediate(self.fade_next_state)
+                self.fade_direction = "in"
+        else:
+            self.fade_alpha = max(0.0, self.fade_alpha - step)
+            if self.fade_alpha <= 0.0:
+                self.fade_active = False
+                self.fade_next_state = None
+
+    def _render_fade_overlay(self, screen: pygame.Surface) -> None:
+        """Render black fade overlay if active."""
+        if not self.fade_active:
+            return
+        overlay = pygame.Surface(screen.get_size())
+        overlay.fill((0, 0, 0))
+        overlay.set_alpha(int(self.fade_alpha))
+        screen.blit(overlay, (0, 0))
 
     # ========================================================================
     # STATE MACHINE
@@ -594,12 +645,20 @@ class Tachistostory:
                 self.handle_global_events(events)
                 self.state_machine.handle_events(events)
 
+                delta_time = clock.get_time() / 1000.0
+                self._update_fade(delta_time)
+
                 if self._render_error_overlay(clock):
+                    if self.screen:
+                        self._render_fade_overlay(self.screen)
+                    self.updating()
+                    clock.tick(60)
                     continue
 
-                delta_time = clock.get_time() / 1000.0
                 self.state_machine.update(delta_time)
                 self.state_machine.render()
+                if self.screen:
+                    self._render_fade_overlay(self.screen)
                 self.updating()
                 clock.tick(60)
 

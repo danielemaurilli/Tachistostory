@@ -52,6 +52,7 @@ class TimingConfig:
     logo_fade_duration: int = 3500
     intro_table_duration: int = settings.INTRO_TABLE_DURATION
     book_frame_duration: int = 220
+    state_fade_duration: int = 1600
 
 
 @dataclass

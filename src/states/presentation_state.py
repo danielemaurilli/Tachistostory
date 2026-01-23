@@ -125,6 +125,10 @@ class PresentationState(BaseState):
         else:
             screen.fill(self.app.bg_color)
 
+        # Don't render text during fade transition
+        if self._is_fade_active():
+            return
+
         # Slider
         self._render_slider(screen)
 
@@ -234,3 +238,7 @@ class PresentationState(BaseState):
             bottom=self.app.screen_height - 50,
         )
         screen.blit(text_surf, text_rect)
+
+    def _is_fade_active(self) -> bool:
+        """Check if global fade transition is active."""
+        return hasattr(self.app, "fade_active") and self.app.fade_active

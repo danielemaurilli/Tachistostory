@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import pygame
 from src.states.base_state import BaseState
-from src.core.config import DisplayConfig
+from src.core.config import config, DisplayConfig
 
 
 class InstructionState(BaseState):
@@ -47,9 +47,14 @@ class InstructionState(BaseState):
         """Render instruction screen with file info and commands."""
         # Draw background
         if self.app.bg_istructions:
-            screen.blit(self.app.bg_istructions, (0, 0))
+           screen.blit(self.app.bg_istructions, (0, 0))
         else:
             screen.fill(self.app.menu_bg_color)
+
+        # Don't render text during fade transition
+        if self._is_fade_active():
+            return
+
         win_w, win_h = screen.get_size()
 
         # Title
@@ -100,3 +105,7 @@ class InstructionState(BaseState):
         about_rect = about.get_rect(centerx=win_w // 2, bottom=win_h )
 
         screen.blit(about, about_rect)
+
+    def _is_fade_active(self) -> bool:
+        """Check if global fade transition is active."""
+        return hasattr(self.app, "fade_active") and self.app.fade_active
