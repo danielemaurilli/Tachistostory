@@ -14,7 +14,7 @@ from pygame.locals import RESIZABLE
 
 from src.core.config import config
 from src.core.enums import Error, State
-from src.loaders.file_loader import FileLoader, LoadedText
+from src.loaders.file_loader import FileLoader, LoadedText, LoadMusic
 from src.utils.images import (
     extract_sprite_frames,
     load_image_asset,
@@ -27,6 +27,7 @@ from src.utils.text import mask_word
 # Initialize Pygame
 pygame.init()
 pygame.font.init()
+pygame.mixer.init()
 
 # Screen dimensions (captured before window creation)
 SCREEN_MAX_W = config.display.max_width
@@ -119,6 +120,11 @@ class Tachistostory:
         self.fade_alpha = 0.0
         self.fade_next_state: Optional[str] = None
         self.fade_duration_ms = config.timing.state_fade_duration
+
+        #===================== MUSIC ========================================
+        self.background_music = config.music.background_music
+        self.loop = config.music.loop
+        self.volume = config.music.volume
 
     # ========================================================================
     # WINDOW MANAGEMENT
@@ -315,6 +321,15 @@ class Tachistostory:
             self.parola_corrente = ""
             self.parola_mascherata = ""
             self.phrases_index = 0
+
+    def load_music(self, path: str) -> None:
+        """Load and start background music."""
+        pygame.mixer.music.load(path)
+        pygame.mixer.music.set_volume(config.music.volume)
+        loops = -1 if config.music.loop else 0
+        pygame.mixer.music.play(loops=loops)
+        self.background_music = path
+
 
     def reset(self) -> None:
         """Reset game to initial state."""
@@ -629,6 +644,18 @@ class Tachistostory:
         self.mostra_errore = False
         return False
 
+
+    # ========================================================================
+    # MUSIC
+    # ========================================================================
+
+    def music_exe(self):
+        """Load and execute music."""
+        try:
+            self.load_music(config.music.background_music)
+        except Exception as e:
+            print(f"⚠ Errore caricamento musica: {e}")
+
     # ========================================================================
     # STATE TRANSITION FADE
     # ========================================================================
@@ -713,6 +740,7 @@ class Tachistostory:
         self.load_assets()
         self._update_slider_position()
         self._build_state_machine()
+        self.music_exe()
 
     def run(self) -> None:
         """Run the main application loop."""

@@ -91,6 +91,12 @@ class PathConfig:
 class BookConfig:
     bottom_margin: int = -130
 
+@dataclass
+class MusicConfig:
+    background_music: str = "assets/sounds/fantasy_music.mp3"
+    volume: float = 0.5
+    loop: bool = True
+    
 
 @dataclass
 class AppConfig:
@@ -100,6 +106,6 @@ class AppConfig:
     slider: SliderConfig = field(default_factory=SliderConfig)
     paths: PathConfig = field(default_factory=PathConfig)
     book: BookConfig = field(default_factory=BookConfig)
-
+    music: MusicConfig = field(default_factory=MusicConfig)
 
 config = AppConfig()

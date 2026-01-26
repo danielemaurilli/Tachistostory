@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import List
+from src.core.config import MusicConfig
 import os
 
 import docx2txt
@@ -19,7 +20,6 @@ class LoadedText:
     phrases_list: List[str]
     phrases_total: int
     word_to_phrase_map: List[int]
-
 
 class FileLoader:
     """Load and parse text files into word/phrase structures."""
@@ -58,3 +58,10 @@ class FileLoader:
             phrases_total=parse_result.phrases_total,
             word_to_phrase_map=parse_result.word_to_phrase_map,
         )
+
+class LoadMusic:
+    @staticmethod
+    def load_background_music(path: str) -> MusicConfig:
+        if not os.path.exists(path):
+            raise FileNotFoundError(f'File not found: {path}')
+        return MusicConfig(background_music=path)
