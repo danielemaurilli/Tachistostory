@@ -51,8 +51,4 @@ htmlcov/
 *.zip
 build/
 dist/
-<<<<<<< HEAD
-
 game_old.py
-=======
->>>>>>> 1982162 (Initial commit)
