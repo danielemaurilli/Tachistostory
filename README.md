@@ -2,6 +2,7 @@
 
 ![License: Custom Non-Commercial](https://img.shields.io/badge/License-Custom_Non--Commercial-blue.svg)
 ![Clinical Use: Allowed](https://img.shields.io/badge/Clinical_Use-Allowed-green.svg)
+<<<<<<< HEAD
 ![Version](https://img.shields.io/badge/version-0.1.0-orange.svg)
 Maurilli, D. (2025). Tachistostory: Applicazione tachistoscopica per 
 il potenziamento delle abilità di lettura [Software]. 
@@ -10,6 +11,15 @@ GitHub: https://github.com/danielemaurilli/tachistostory
 Licenza: Custom Non-Commercial Clinical License
 
 [Python](https://img.shields.io/badge/python-3.8+-blue.svg)
+=======
+![Version](https://img.shields.io/badge/version```
+Maurilli, D. (2025). Tachistostory: Applicazione tachistoscopica per 
+il potenziamento delle abilità di lettura [Software]. 
+GitHub: https://github.com/danielemaurilli/tachistostory
+Licenza: Custom Non-Commercial Clinical License
+```-orange.svg)
+![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
+>>>>>>> 1982162 (Initial commit)
 
 > Applicazione tachistoscopica per il potenziamento delle abilità di lettura attraverso l'allenamento dei movimenti oculari saccadici
 
@@ -19,6 +29,7 @@ Licenza: Custom Non-Commercial Clinical License
 
 **Tachistostory** è uno strumento clinico-educativo innovativo progettato per il potenziamento delle abilità di lettura nei bambini attraverso la tecnica tachistoscopica. L'applicazione si basa su solidi principi neuroscientifici riguardanti i movimenti oculari saccadici durante la lettura.
 
+<<<<<<< HEAD
 - Presentare parole o brevi stringhe per tempi molto brevi (100–250 ms) in posizioni controllate dello schermo allena i sistemi visivo–attentivi che supportano le saccadi e le fissazioni durante la lettura (Bakker & Vinke, 1985; Lorusso et al., 2005).  
 - Questo tipo di training, sia in formato clinico (VHSS, Tachidino) sia in formato ludico (Tachistoscopio), è associato a miglioramenti significativi della velocità e dell’accuratezza di lettura in bambini con dislessia e si mantiene nel tempo (Lorusso et al., 2022; Piazzalunga et al., 2023; McHolm, 2023).  
 - Nei soggetti con ADHD, modalità di lettura che riducano o eliminino i movimenti oculari (es. RSVP) migliorano la comprensione del testo rispetto alla lettura tradizionale, indicando che la presentazione rapida e centrata delle parole può compensare parte delle difficoltà attentive (Moussaoui et al., 2023), e che trattamenti tachistoscopici per la dislessia restano efficaci anche in presenza di ADHD (Lorusso et al., 2024).  
@@ -50,6 +61,8 @@ Piazzalunga, C., Dui, L. G., Fontolan, S., Franceschini, S., Bortolozzo, M., Ter
 <img width="1624" height="918" alt="Screenshot 2025-12-11 alle 16 49 01" src="https://github.com/user-attachments/assets/a782e677-c18d-4c58-9f94-fe1496b28334" />
 
 
+=======
+>>>>>>> 1982162 (Initial commit)
 ### Come Funziona
 
 Il tachistoscopio presenta parole singole per brevi periodi di tempo controllati, allenando il sistema visivo a processare l'informazione scritta in modo più efficiente. Il training segue un percorso graduale:
@@ -162,6 +175,21 @@ python main.py
 
 Durante la lettura fluente, gli occhi eseguono movimenti rapidi chiamati **saccadi** che durano circa **20-40 ms**, seguiti da fissazioni di **200-250 ms** durante le quali il cervello elabora l'informazione. Tachistostory allena questo processo naturale.
 
+<<<<<<< HEAD
+=======
+### Progressione del Training
+
+```
+Settimana 1-2:  1200 ms → Familiarizzazione con lo strumento
+Settimana 3-4:  900 ms  → Prima riduzione significativa
+Settimana 5-6:  600 ms  → Avvicinamento al tempo naturale
+Settimana 7-8:  400 ms  → Affinamento delle abilità
+Settimana 9+:   250 ms  → Tempo target di lettura fluente
+```
+
+*Nota: I tempi sono indicativi e vanno adattati al singolo bambino*
+
+>>>>>>> 1982162 (Initial commit)
 ### Componenti Cognitive Allenate
 
 1. **Elaborazione visiva rapida**: Riconoscimento immediato delle parole
@@ -179,7 +207,11 @@ Durante la lettura fluente, gli occhi eseguono movimenti rapidi chiamati **sacca
 
 ### Protocollo
 1. **Warm-up** (5 min): Tempo di esposizione confortevole (es. 800 ms)
+<<<<<<< HEAD
 2. **Training** (10 min): Tempo target della sessione
+=======
+2. **Training** (15 min): Tempo target della sessione
+>>>>>>> 1982162 (Initial commit)
 3. **Cool-down** (5 min): Domande di comprensione e feedback
 4. **Registrazione**: Annotare tempo usato, numero di frasi, errori, fatica percepita
 
@@ -193,6 +225,17 @@ Per la frase: *"Il gatto dorme sul divano"*
 
 ## 🎨 Personalizzazione
 
+<<<<<<< HEAD
+=======
+### Creazione di Materiali Personalizzati
+
+Il contenuto può essere adattato a:
+- **Livello di lettura** del bambino
+- **Interessi personali** (sport, animali, videogiochi)
+- **Obiettivi specifici** (vocaboli nuovi, strutture grammaticali)
+- **Tematiche curriculari** (per supporto scolastico)
+
+>>>>>>> 1982162 (Initial commit)
 ### Suggerimenti per i Contenuti
 
 - Inizia con parole brevi (3-5 lettere)
@@ -202,6 +245,16 @@ Per la frase: *"Il gatto dorme sul divano"*
 
 ## 📊 Monitoraggio dei Progressi
 
+<<<<<<< HEAD
+=======
+### Indicatori da Registrare
+- Tempo di esposizione utilizzato
+- Numero di parole/frasi completate
+- Accuratezza nella ricostruzione delle frasi
+- Risposte corrette alle domande di comprensione
+- Livello di fatica percepita (scala 1-5)
+
+>>>>>>> 1982162 (Initial commit)
 ### Criteri di Progressione
 Riduci il tempo di esposizione quando il bambino:
 - Legge correttamente almeno l'80% delle parole
@@ -251,7 +304,11 @@ Leggi [CONTRIBUTING.md](CONTRIBUTING.md) per maggiori dettagli.
 
 ## 🐛 Segnalazione Bug
 
+<<<<<<< HEAD
 Hai trovato un bug? [Apri una issue](https://github.com/danielemaurilli/tachistostory/issues) descrivendo:
+=======
+Hai trovato un bug? [Apri una issue](https://github.com/[username]/tachistostory/issues) descrivendo:
+>>>>>>> 1982162 (Initial commit)
 - Cosa hai fatto
 - Cosa ti aspettavi
 - Cosa è successo invece
@@ -265,7 +322,11 @@ Se utilizzi Tachistostory in un contesto clinico o di ricerca, citalo come:
 ```
 Maurilli, D. (2025). Tachistostory: Applicazione tachistoscopica per il 
 potenziamento delle abilità di lettura [Software]. 
+<<<<<<< HEAD
 GitHub: https://github.com/danielemaurilli/tachistostory
+=======
+GitHub: https://github.com/[username]/tachistostory
+>>>>>>> 1982162 (Initial commit)
 Licenza: Custom Non-Commercial Clinical License
 ```
 
@@ -275,7 +336,11 @@ Licenza: Custom Non-Commercial Clinical License
   author = {Maurilli, Daniele},
   title = {Tachistostory: Applicazione tachistoscopica per il potenziamento delle abilità di lettura},
   year = {2025},
+<<<<<<< HEAD
   url = {https://github.com/danielemaurilli/tachistostory},
+=======
+  url = {https://github.com/[username]/tachistostory},
+>>>>>>> 1982162 (Initial commit)
   note = {Licenza: Custom Non-Commercial Clinical License}
 }
 ```
@@ -304,15 +369,39 @@ Tachistostory è uno **strumento di supporto** clinico e non sostituisce una val
 
 L'utente è responsabile dell'uso appropriato del software e della conformità alle normative vigenti.
 
+<<<<<<< HEAD
 ## 📞 Supporto
 
 - 📖 [Wiki](https://github.com/danielemaurilli/tachistostory/wiki) (in sviluppo)
 - 💬 [Discussions](https://github.com/danielemaurilli/tachistostory/discussions)
 - 🐛 [Issues](https://github.com/danielemaurilli/tachistostory/issues)
+=======
+## 🔮 Roadmap Futura
+
+- [ ] Sistema di tracciamento automatico dei progressi
+- [ ] Generazione di report per i genitori
+- [ ] Database di frasi pre-configurate per età/livello
+- [ ] Modalità multiplayer per competizione amichevole
+- [ ] Integrazione domande di comprensione nell'interfaccia
+- [ ] Supporto per immagini associate alle parole
+- [ ] Esportazione dati per analisi statistiche
+
+## 📞 Supporto
+
+- 📖 [Wiki](https://github.com/[username]/tachistostory/wiki) (in sviluppo)
+- 💬 [Discussions](https://github.com/[username]/tachistostory/discussions)
+- 🐛 [Issues](https://github.com/[username]/tachistostory/issues)
+>>>>>>> 1982162 (Initial commit)
 - 📧 Email: maurillidaniele@gmail.com
 
 ---
 
+<<<<<<< HEAD
 **Sviluppato con ❤️ **
 
 *Versione 0.9.0 - Dicembre 2025*
+=======
+**Sviluppato con ❤️ per supportare bambini con difficoltà di lettura**
+
+*Versione 0.9.0 - Dicembre 2025*
+>>>>>>> 1982162 (Initial commit)

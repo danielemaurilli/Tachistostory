@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 altgraph==0.17.5
 docx2txt==0.9
 macholib==1.16.4
@@ -5,3 +6,7 @@ packaging==25.0
 pygame==2.6.1
 pyinstaller==6.17.0
 pyinstaller-hooks-contrib==2025.10
+=======
+pygame>=2.5.0
+docx2txt>=0.8
+>>>>>>> 1982162 (Initial commit)

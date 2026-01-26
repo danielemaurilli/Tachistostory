@@ -2,7 +2,11 @@
 
 ![License: Custom Non-Commercial](https://img.shields.io/badge/License-Custom_Non--Commercial-blue.svg)
 ![Clinical Use: Allowed](https://img.shields.io/badge/Clinical_Use-Allowed-green.svg)
+<<<<<<< HEAD
 ![Version](https://img.shields.io/badge/version-0.1.0-orange.svg)
+=======
+![Version](https://img.shields.io/badge/version-0.9.0-orange.svg)
+>>>>>>> 1982162 (Initial commit)
 ![Python](https://img.shields.io/badge/python-3.8+-blue.svg)
 
 > Tachistoscopic application for enhancing reading skills through saccadic eye movement training
@@ -13,6 +17,7 @@
 
 **Tachistostory** is an innovative clinical-educational tool designed to enhance children's reading skills through tachistoscopic technique. The application is based on solid neuroscientific principles regarding saccadic eye movements during reading.
 
+<<<<<<< HEAD
 - Presenting words or short strings for very brief intervals (100–250 ms) in controlled screen positions trains the visual-attentional systems that support saccades and fixations during reading (Bakker & Vinke, 1985; Lorusso et al., 2005).
 - This type of training, both in clinical format (VHSS, Tachidino) and in game format (Tachistoscope), is associated with significant improvements in reading speed and accuracy in children with dyslexia and is maintained over time (Lorusso et al., 2022; Piazzalunga et al., 2023; McHolm, 2023).
 - In individuals with ADHD, reading modalities that reduce or eliminate eye movements (e.g., RSVP) improve text comprehension compared to traditional reading, indicating that rapid and centered word presentation can compensate for part of the attentional difficulties (Moussaoui et al., 2023), and that tachistoscopic treatments for dyslexia remain effective even in the presence of ADHD (Lorusso et al., 2024).
@@ -42,6 +47,8 @@ Piazzalunga, C., Dui, L. G., Fontolan, S., Franceschini, S., Bortolozzo, M., Ter
 <img width="1698" height="937" alt="Screenshot 2025-12-11 alle 16 48 52" src="https://github.com/user-attachments/assets/32fafffc-301e-4e50-a601-28787ab84c6a" />
 <img width="1624" height="918" alt="Screenshot 2025-12-11 alle 16 49 01" src="https://github.com/user-attachments/assets/a782e677-c18d-4c58-9f94-fe1496b28334" />
 
+=======
+>>>>>>> 1982162 (Initial commit)
 ### How It Works
 
 The tachistoscope presents single words for brief, controlled periods of time, training the visual system to process written information more efficiently. The training follows a gradual path:
@@ -154,6 +161,21 @@ python main.py
 
 During fluent reading, eyes perform rapid movements called **saccades** lasting about **20-40 ms**, followed by fixations of **200-250 ms** during which the brain processes information. Tachistostory trains this natural process.
 
+<<<<<<< HEAD
+=======
+### Training Progression
+
+```
+Week 1-2:  1200 ms → Tool familiarization
+Week 3-4:  900 ms  → First significant reduction
+Week 5-6:  600 ms  → Approaching natural time
+Week 7-8:  400 ms  → Skill refinement
+Week 9+:   250 ms  → Target time for fluent reading
+```
+
+*Note: Times are indicative and should be adapted to individual children*
+
+>>>>>>> 1982162 (Initial commit)
 ### Trained Cognitive Components
 
 1. **Rapid visual processing**: Immediate word recognition
@@ -171,7 +193,11 @@ During fluent reading, eyes perform rapid movements called **saccades** lasting 
 
 ### Protocol
 1. **Warm-up** (5 min): Comfortable exposure time (e.g., 800 ms)
+<<<<<<< HEAD
 2. **Training** (10 min): Session target time
+=======
+2. **Training** (15 min): Session target time
+>>>>>>> 1982162 (Initial commit)
 3. **Cool-down** (5 min): Comprehension questions and feedback
 4. **Recording**: Note time used, number of sentences, errors, perceived fatigue
 
@@ -185,6 +211,17 @@ For sentence: *"The cat sleeps on the sofa"*
 
 ## 🎨 Customization
 
+<<<<<<< HEAD
+=======
+### Creating Custom Materials
+
+Content can be adapted to:
+- Child's **reading level**
+- **Personal interests** (sports, animals, video games)
+- **Specific goals** (new vocabulary, grammatical structures)
+- **Curricular themes** (for school support)
+
+>>>>>>> 1982162 (Initial commit)
 ### Content Suggestions
 
 - Start with short words (3-5 letters)
@@ -194,6 +231,16 @@ For sentence: *"The cat sleeps on the sofa"*
 
 ## 📊 Progress Monitoring
 
+<<<<<<< HEAD
+=======
+### Indicators to Record
+- Exposure time used
+- Number of words/sentences completed
+- Accuracy in sentence reconstruction
+- Correct answers to comprehension questions
+- Perceived fatigue level (scale 1-5)
+
+>>>>>>> 1982162 (Initial commit)
 ### Progression Criteria
 Reduce exposure time when the child:
 - Correctly reads at least 80% of words
@@ -243,7 +290,11 @@ Read [CONTRIBUTING_EN.md](CONTRIBUTING_EN.md) for more details.
 
 ## 🐛 Bug Reporting
 
+<<<<<<< HEAD
 Found a bug? [Open an issue](https://github.com/danielemaurilli/tachistostory/issues) describing:
+=======
+Found a bug? [Open an issue](https://github.com/[username]/tachistostory/issues) describing:
+>>>>>>> 1982162 (Initial commit)
 - What you did
 - What you expected
 - What actually happened
@@ -267,7 +318,11 @@ License: Custom Non-Commercial Clinical License
   author = {Maurilli, Daniele},
   title = {Tachistostory: Tachistoscopic application for reading skills enhancement},
   year = {2025},
+<<<<<<< HEAD
   url = {https://github.com/danielemaurilli/tachistostory},
+=======
+  url = {https://github.com/[username]/tachistostory},
+>>>>>>> 1982162 (Initial commit)
   note = {License: Custom Non-Commercial Clinical License}
 }
 ```
@@ -287,11 +342,16 @@ License: Custom Non-Commercial Clinical License
 
 ## ⚠️ Clinical Disclaimer
 
+<<<<<<< HEAD
 Tachistostory is a clinical **support tool** and does not replace a complete diagnostic assessment or structured therapeutic intervention. It must be used:
+=======
+Tachistostory is a clinical **support tool** and does not replace a comprehensive diagnostic evaluation or structured therapeutic intervention. It should be used:
+>>>>>>> 1982162 (Initial commit)
 
 - By qualified professionals (psychologists, speech therapists, therapists)
 - Within a broader therapeutic pathway
 - With direct supervision during use with children
+<<<<<<< HEAD
 - In compliance with privacy regulations (GDPR) and professional ethical codes
 
 The user is responsible for appropriate use of the software and compliance with applicable regulations.
@@ -301,10 +361,37 @@ The user is responsible for appropriate use of the software and compliance with 
 - 📖 [Wiki](https://github.com/danielemaurilli/tachistostory/wiki) (in development)
 - 💬 [Discussions](https://github.com/danielemaurilli/tachistostory/discussions)
 - 🐛 [Issues](https://github.com/danielemaurilli/tachistostory/issues)
+=======
+- In compliance with privacy regulations (GDPR) and professional codes of ethics
+
+The user is responsible for appropriate use of the software and compliance with applicable regulations.
+
+## 🔮 Future Roadmap
+
+- [ ] Automatic progress tracking system
+- [ ] Report generation for parents
+- [ ] Pre-configured sentence database by age/level
+- [ ] Multiplayer mode for friendly competition
+- [ ] Interface-integrated comprehension questions
+- [ ] Support for images associated with words
+- [ ] Data export for statistical analysis
+
+## 📞 Support
+
+- 📖 [Wiki](https://github.com/[username]/tachistostory/wiki) (in development)
+- 💬 [Discussions](https://github.com/[username]/tachistostory/discussions)
+- 🐛 [Issues](https://github.com/[username]/tachistostory/issues)
+>>>>>>> 1982162 (Initial commit)
 - 📧 Email: maurillidaniele@gmail.com
 
 ---
 
+<<<<<<< HEAD
 **Developed with ❤️**
 
 *Version 0.9.0 - December 2025*
+=======
+**Developed with ❤️ to support children with reading difficulties**
+
+*Version 0.9.0 - December 2025*
+>>>>>>> 1982162 (Initial commit)

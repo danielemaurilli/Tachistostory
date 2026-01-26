@@ -23,7 +23,10 @@ MANIFEST
 
 # Virtual Environment
 .venv/
+<<<<<<< HEAD
 .venv_old/
+=======
+>>>>>>> 1982162 (Initial commit)
 
 venv/
 ENV/
@@ -50,5 +53,8 @@ htmlcov/
 *.zip
 build/
 dist/
+<<<<<<< HEAD
 
 game_old.py
+=======
+>>>>>>> 1982162 (Initial commit)
