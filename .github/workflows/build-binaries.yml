@@ -29,10 +29,19 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pyinstaller
+          pip install nuitka
 
-      - name: Build .exe with PyInstaller
-        run: pyinstaller --onefile --noconsole --name Tachistostory --add-data "assets;assets" main.py
+      - name: Build .exe with Nuitka
+        run: |
+          python -m nuitka \
+            --standalone \
+            --onefile \
+            --assume-yes-for-downloads \
+            --enable-plugin=pygame \
+            --include-data-dir=assets=assets \
+            --output-dir=dist \
+            --output-filename=Tachistostory \
+            main.py
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
@@ -59,11 +68,19 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pyinstaller
+          pip install nuitka
 
-      - name: Build .app with PyInstaller
+      - name: Build .app with Nuitka
         run: |
-          pyinstaller --windowed --noconsole --name Tachistostory --add-data "assets:assets" main.py
+          python -m nuitka \
+            --standalone \
+            --assume-yes-for-downloads \
+            --enable-plugin=pygame \
+            --include-data-dir=assets=assets \
+            --macos-create-app-bundle \
+            --macos-app-name=Tachistostory \
+            --output-dir=dist \
+            main.py
           cd dist
           zip -r Tachistostory-macOS.zip Tachistostory.app
 
