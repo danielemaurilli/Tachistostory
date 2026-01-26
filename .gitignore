@@ -23,10 +23,8 @@ MANIFEST
 
 # Virtual Environment
 .venv/
-<<<<<<< HEAD
 .venv_old/
-=======
->>>>>>> 1982162 (Initial commit)
+
 
 venv/
 ENV/
