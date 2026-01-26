@@ -37,7 +37,8 @@ jobs:
             --standalone \
             --onefile \
             --assume-yes-for-downloads \
-            --enable-plugin=pygame \
+            --include-package=pygame \
+            --include-package-data=pygame \
             --include-data-dir=assets=assets \
             --output-dir=dist \
             --output-filename=Tachistostory \
@@ -75,7 +76,8 @@ jobs:
           python -m nuitka \
             --standalone \
             --assume-yes-for-downloads \
-            --enable-plugin=pygame \
+            --include-package=pygame \
+            --include-package-data=pygame \
             --include-data-dir=assets=assets \
             --macos-create-app-bundle \
             --macos-app-name=Tachistostory \
