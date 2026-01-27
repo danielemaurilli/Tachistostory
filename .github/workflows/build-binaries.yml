@@ -32,6 +32,7 @@ jobs:
           pip install nuitka
 
       - name: Build .exe with Nuitka
+        shell: bash
         run: |
           python -m nuitka \
             --standalone \
