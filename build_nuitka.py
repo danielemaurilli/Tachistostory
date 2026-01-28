@@ -107,8 +107,13 @@ def get_base_nuitka_args() -> list:
         # Output
         f"--output-dir={BUILD_DIR}",
         
-        # Include packages (pygame doesn't have a dedicated plugin)
-        "--include-package=pygame",
+        # Include only necessary pygame modules (exclude tests, examples, docs)
+        "--include-module=pygame",
+        "--nofollow-import-to=pygame.tests",
+        "--nofollow-import-to=pygame.examples",
+        "--nofollow-import-to=pygame.docs",
+        
+        # Include docx2txt
         "--include-package=docx2txt",
         
         # Include pygame data files (fonts, icons, etc.)
