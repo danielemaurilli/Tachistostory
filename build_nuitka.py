@@ -57,7 +57,7 @@ def check_nuitka_installed() -> bool:
 
 def install_nuitka():
     """Install Nuitka and dependencies."""
-    print("📦 Installing Nuitka and dependencies...")
+    print("[*] Installing Nuitka and dependencies...")
     
     packages = [
         "nuitka",
@@ -69,12 +69,12 @@ def install_nuitka():
         [sys.executable, "-m", "pip", "install", "--upgrade"] + packages,
         check=True
     )
-    print("✅ Nuitka installed successfully!")
+    print("[OK] Nuitka installed successfully!")
 
 
 def clean_build_dirs():
     """Clean previous build directories."""
-    print("🧹 Cleaning previous builds...")
+    print("[*] Cleaning previous builds...")
     
     for dir_path in [BUILD_DIR, DIST_DIR]:
         if dir_path.exists():
@@ -93,7 +93,7 @@ def clean_build_dirs():
     if nuitka_onefile.exists():
         shutil.rmtree(nuitka_onefile)
     
-    print("✅ Clean complete!")
+    print("[OK] Clean complete!")
 
 
 def get_base_nuitka_args() -> list:
@@ -180,9 +180,9 @@ def get_onefile_args() -> list:
 def build(onefile: bool = False, clean: bool = True):
     """Run the Nuitka build process."""
     current_platform = get_platform()
-    print(f"🔨 Building {APP_NAME} for {current_platform}...")
-    print(f"   Version: {VERSION}")
-    print(f"   Mode: {'Onefile' if onefile else 'Standalone'}")
+    print(f"[*] Building {APP_NAME} for {current_platform}...")
+    print(f"    Version: {VERSION}")
+    print(f"    Mode: {'Onefile' if onefile else 'Standalone'}")
     
     # Check/install Nuitka
     if not check_nuitka_installed():
@@ -206,25 +206,25 @@ def build(onefile: bool = False, clean: bool = True):
         args.extend(get_onefile_args())
     
     # Run build
-    print("\n🚀 Starting Nuitka compilation...")
-    print(f"   Command: {' '.join(args)}\n")
+    print("\n[*] Starting Nuitka compilation...")
+    print(f"    Command: {' '.join(args)}\n")
     
     try:
         subprocess.run(args, check=True, cwd=ROOT_DIR)
     except subprocess.CalledProcessError as e:
-        print(f"❌ Build failed with error code {e.returncode}")
+        print(f"[ERROR] Build failed with error code {e.returncode}")
         sys.exit(1)
     
     # Move output to dist directory
     organize_output(current_platform, onefile)
     
-    print(f"\n✅ Build completed successfully!")
-    print(f"   Output: {DIST_DIR}")
+    print(f"\n[OK] Build completed successfully!")
+    print(f"     Output: {DIST_DIR}")
 
 
 def organize_output(platform_name: str, onefile: bool):
     """Organize build output into dist directory."""
-    print("\n📁 Organizing output files...")
+    print("\n[*] Organizing output files...")
     
     DIST_DIR.mkdir(exist_ok=True)
     
@@ -236,7 +236,7 @@ def organize_output(platform_name: str, onefile: bool):
             if dest.exists():
                 shutil.rmtree(dest)
             shutil.copytree(app_bundle, dest)
-            print(f"   ✓ {APP_NAME}.app")
+            print(f"    [OK] {APP_NAME}.app")
     else:
         # Windows/Linux
         if onefile:
@@ -244,7 +244,7 @@ def organize_output(platform_name: str, onefile: bool):
             exe_file = BUILD_DIR / exe_name
             if exe_file.exists():
                 shutil.copy2(exe_file, DIST_DIR / exe_name)
-                print(f"   ✓ {exe_name}")
+                print(f"    [OK] {exe_name}")
         else:
             dist_folder = BUILD_DIR / "main.dist"
             if dist_folder.exists():
@@ -252,15 +252,15 @@ def organize_output(platform_name: str, onefile: bool):
                 if dest.exists():
                     shutil.rmtree(dest)
                 shutil.copytree(dist_folder, dest)
-                print(f"   ✓ {APP_NAME}/")
+                print(f"    [OK] {APP_NAME}/")
 
 
 def print_usage():
     """Print usage information."""
-    print(f"""
-╔════════════════════════════════════════════════════════════╗
-║             Tachistostory - Nuitka Build Script            ║
-╚════════════════════════════════════════════════════════════╝
+    print("""
+============================================================
+             Tachistostory - Nuitka Build Script            
+============================================================
 
 Usage: python build_nuitka.py [OPTIONS]
 
@@ -275,7 +275,7 @@ Examples:
     python build_nuitka.py --onefile          # Single file build
     python build_nuitka.py --onefile --no-clean
 
-Platform detected: {get_platform()}
+Platform detected: """ + get_platform() + """
 """)
 
 
