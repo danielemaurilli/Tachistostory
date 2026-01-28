@@ -107,12 +107,12 @@ def get_base_nuitka_args() -> list:
         # Output
         f"--output-dir={BUILD_DIR}",
         
-        # Python modules to include
-        "--enable-plugin=pygame",          # Pygame support
-        
-        # Include packages
+        # Include packages (pygame doesn't have a dedicated plugin)
         "--include-package=pygame",
         "--include-package=docx2txt",
+        
+        # Include pygame data files (fonts, icons, etc.)
+        "--include-package-data=pygame",
         
         # Include data files
         f"--include-data-dir={ASSETS_DIR}=assets",
