@@ -1,0 +1,211 @@
+name: Build Tachistostory
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: 'Create a release'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  APP_NAME: Tachistostory
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  build-macos:
+    name: Build macOS
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install nuitka ordered-set zstandard
+      
+      - name: Build with Nuitka
+        run: |
+          python build_nuitka.py
+      
+      - name: Get version
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "version=dev-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Create DMG
+        run: |
+          cd dist_nuitka
+          hdiutil create -volname "${{ env.APP_NAME }}" \
+            -srcfolder "${{ env.APP_NAME }}.app" \
+            -ov -format UDZO \
+            "${{ env.APP_NAME }}_${{ steps.version.outputs.version }}_macOS.dmg"
+      
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-macOS-${{ steps.version.outputs.version }}
+          path: |
+            dist_nuitka/*.dmg
+            dist_nuitka/${{ env.APP_NAME }}.app
+          retention-days: 30
+
+  build-macos-intel:
+    name: Build macOS (Intel)
+    runs-on: macos-13  # Intel runner
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install nuitka ordered-set zstandard
+      
+      - name: Build with Nuitka
+        run: |
+          python build_nuitka.py
+      
+      - name: Get version
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "version=dev-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Create DMG
+        run: |
+          cd dist_nuitka
+          hdiutil create -volname "${{ env.APP_NAME }}" \
+            -srcfolder "${{ env.APP_NAME }}.app" \
+            -ov -format UDZO \
+            "${{ env.APP_NAME }}_${{ steps.version.outputs.version }}_macOS_Intel.dmg"
+      
+      - name: Upload macOS Intel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-macOS-Intel-${{ steps.version.outputs.version }}
+          path: dist_nuitka/*.dmg
+          retention-days: 30
+
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install nuitka ordered-set zstandard
+      
+      - name: Build with Nuitka
+        run: |
+          python build_nuitka.py
+      
+      - name: Get version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "version=dev-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Create ZIP
+        run: |
+          cd dist_nuitka
+          Compress-Archive -Path "${{ env.APP_NAME }}" -DestinationPath "${{ env.APP_NAME }}_${{ steps.version.outputs.version }}_Windows.zip"
+      
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-Windows-${{ steps.version.outputs.version }}
+          path: dist_nuitka/*.zip
+          retention-days: 30
+
+  release:
+    name: Create Release
+    needs: [build-macos, build-macos-intel, build-windows]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.create_release == 'true'
+    
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Get version
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "version=dev-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      
+      - name: List artifacts
+        run: find artifacts -type f -name "*.zip" -o -name "*.dmg"
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: ${{ env.APP_NAME }} ${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+          generate_release_notes: true
+          files: |
+            artifacts/**/*.zip
+            artifacts/**/*.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
