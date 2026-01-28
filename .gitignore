@@ -32,7 +32,8 @@ env/
 
 # PyInstaller
 *.manifest
-*.spec
+# Keep Tachistostory.spec but ignore others
+# *.spec
 
 # IDEs
 .vscode/
