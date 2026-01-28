@@ -9,7 +9,7 @@ on:
       create_release:
         description: 'Create a release'
         required: false
-        default: false
+        default: 'false'
         type: boolean
 
 env:
@@ -17,9 +17,9 @@ env:
   PYTHON_VERSION: '3.11'
 
 jobs:
-  build-macos:
-    name: Build macOS
-    runs-on: macos-latest
+  build-macos-arm:
+    name: Build macOS (Apple Silicon)
+    runs-on: macos-14
     
     steps:
       - name: Checkout repository
@@ -37,11 +37,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install nuitka ordered-set zstandard
+          pip install pyinstaller
       
-      - name: Build with Nuitka
+      - name: Build with PyInstaller
         run: |
-          python build_nuitka.py
+          pyinstaller Tachistostory.spec --clean --noconfirm
       
       - name: Get version
         id: version
@@ -54,24 +54,21 @@ jobs:
       
       - name: Create DMG
         run: |
-          cd dist_nuitka
           hdiutil create -volname "${{ env.APP_NAME }}" \
-            -srcfolder "${{ env.APP_NAME }}.app" \
+            -srcfolder "dist/${{ env.APP_NAME }}.app" \
             -ov -format UDZO \
-            "${{ env.APP_NAME }}_${{ steps.version.outputs.version }}_macOS.dmg"
+            "${{ env.APP_NAME }}_${{ steps.version.outputs.version }}_macOS_ARM64.dmg"
       
-      - name: Upload macOS artifact
+      - name: Upload macOS ARM artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.APP_NAME }}-macOS-${{ steps.version.outputs.version }}
-          path: |
-            dist_nuitka/*.dmg
-            dist_nuitka/${{ env.APP_NAME }}.app
+          name: ${{ env.APP_NAME }}-macOS-ARM64-${{ steps.version.outputs.version }}
+          path: "*.dmg"
           retention-days: 30
 
   build-macos-intel:
     name: Build macOS (Intel)
-    runs-on: macos-13  # Intel runner
+    runs-on: macos-13
     
     steps:
       - name: Checkout repository
@@ -89,11 +86,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install nuitka ordered-set zstandard
+          pip install pyinstaller
       
-      - name: Build with Nuitka
+      - name: Build with PyInstaller
         run: |
-          python build_nuitka.py
+          pyinstaller Tachistostory.spec --clean --noconfirm
       
       - name: Get version
         id: version
@@ -106,9 +103,8 @@ jobs:
       
       - name: Create DMG
         run: |
-          cd dist_nuitka
           hdiutil create -volname "${{ env.APP_NAME }}" \
-            -srcfolder "${{ env.APP_NAME }}.app" \
+            -srcfolder "dist/${{ env.APP_NAME }}.app" \
             -ov -format UDZO \
             "${{ env.APP_NAME }}_${{ steps.version.outputs.version }}_macOS_Intel.dmg"
       
@@ -116,7 +112,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.APP_NAME }}-macOS-Intel-${{ steps.version.outputs.version }}
-          path: dist_nuitka/*.dmg
+          path: "*.dmg"
           retention-days: 30
 
   build-windows:
@@ -139,11 +135,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install nuitka ordered-set zstandard
+          pip install pyinstaller
       
-      - name: Build with Nuitka
+      - name: Build with PyInstaller
         run: |
-          python build_nuitka.py
+          pyinstaller Tachistostory.spec --clean --noconfirm
       
       - name: Get version
         id: version
@@ -157,19 +153,18 @@ jobs:
       
       - name: Create ZIP
         run: |
-          cd dist_nuitka
-          Compress-Archive -Path "${{ env.APP_NAME }}" -DestinationPath "${{ env.APP_NAME }}_${{ steps.version.outputs.version }}_Windows.zip"
+          Compress-Archive -Path "dist\${{ env.APP_NAME }}" -DestinationPath "${{ env.APP_NAME }}_${{ steps.version.outputs.version }}_Windows.zip"
       
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.APP_NAME }}-Windows-${{ steps.version.outputs.version }}
-          path: dist_nuitka/*.zip
+          path: "*.zip"
           retention-days: 30
 
   release:
     name: Create Release
-    needs: [build-macos, build-macos-intel, build-windows]
+    needs: [build-macos-arm, build-macos-intel, build-windows]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.create_release == 'true'
     
@@ -195,7 +190,7 @@ jobs:
           path: artifacts
       
       - name: List artifacts
-        run: find artifacts -type f -name "*.zip" -o -name "*.dmg"
+        run: find artifacts -type f \( -name "*.zip" -o -name "*.dmg" \)
       
       - name: Create Release
         uses: softprops/action-gh-release@v1
