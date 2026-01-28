@@ -94,7 +94,7 @@ class BookConfig:
 @dataclass
 class MusicConfig:
     background_music: str = "assets/sounds/fantasy_music.mp3"
-    volume: float = 0.5
+    volume: float = 0.2
     loop: bool = True
     
 
