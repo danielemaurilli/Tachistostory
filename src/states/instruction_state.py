@@ -20,8 +20,8 @@ class InstructionState(BaseState):
         "- F: toggle fullscreen",
         "- I: minimize window (iconify)",
         "- E: reset the game",
-        '- "<--": go back to the previous word',
-        '- "-->" : go ahead to the next word',
+        '- "-->": go back to the previous word',
+        '- "<--" : go ahead to the next word',
     ]
 
     def __init__(self, state_machine, name: str = "instruction"):

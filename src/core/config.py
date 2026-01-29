@@ -21,10 +21,10 @@ _SCREEN_INFO = pygame.display.Info()
 class DisplayConfig:
     base_width: int = 1920
     base_height: int = 1080
-    min_width: int = settings.MIN_WIDTH
-    min_height: int = settings.MIN_HEIGHT
-    max_width: int = _SCREEN_INFO.current_w
-    max_height: int = _SCREEN_INFO.current_h
+    min_width: int = 1600
+    min_height: int = 1200
+    max_width: int = 1920
+    max_height: int = 1080
     fullscreen_menubar_margin: int = 50
 
     logo_width_ratio: float = 0.4
@@ -80,6 +80,7 @@ class SliderConfig:
 @dataclass
 class PathConfig:
     logo_title: str = "assets/logo/tachistostory_title.png"
+    window_icon: str = "assets/tachistostory_icon.png"
     bg_menu_table_book: str = "assets/gfx/bg/bg_menu_table_book.png"
     bg_menu_table: str = "assets/gfx/bg/bg_menu_table.png"
     bg_istructions: str = "assets/gfx/bg/bg_istructions.png"

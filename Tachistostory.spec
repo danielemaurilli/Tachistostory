@@ -17,8 +17,8 @@ VERSION = '0.2.8'
 BUNDLE_ID = 'com.danielemaurilli.tachistostory'
 
 # Icons
-MACOS_ICON = str(ASSETS_DIR / 'tachistostory.icns')
-WINDOWS_ICON = str(ASSETS_DIR / 'tachistostory.ico')
+MACOS_ICON = str(ASSETS_DIR / 'tachistostory_icon.icns')
+WINDOWS_ICON = str(ASSETS_DIR / 'tachistostory_icon.ico')
 
 # Determine icon based on platform
 if sys.platform == 'darwin':
@@ -51,6 +51,26 @@ hiddenimports = [
     'pygame.cursors',
     'pygame.mixer_music',
     'docx2txt',
+    'src',
+    'src.core',
+    'src.core.config',
+    'src.core.enums',
+    'src.core.state_machine',
+    'src.loaders',
+    'src.loaders.file_loader',
+    'src.states',
+    'src.states.base_state',
+    'src.states.file_selection_state',
+    'src.states.instruction_state',
+    'src.states.intro_book_idle_state',
+    'src.states.intro_book_open_state',
+    'src.states.intro_table_state',
+    'src.states.menu_start_state',
+    'src.states.presentation_state',
+    'src.utils',
+    'src.utils.images',
+    'src.utils.paths',
+    'src.utils.text',
 ]
 
 # Modules to exclude (reduce size)

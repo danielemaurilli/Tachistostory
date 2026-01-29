@@ -13,13 +13,14 @@ from pygame.locals import RESIZABLE
 
 from src.core.config import config
 from src.core.enums import Error, State
-from src.loaders.file_loader import FileLoader, LoadedText, LoadMusic
+from src.loaders.file_loader import FileLoader, LoadedText
 from src.utils.images import (
     extract_sprite_frames,
     load_image_asset,
     scale_image_cover,
     scale_surface_to_fit,
 )
+from src import states
 from src.utils.paths import resource_path
 from src.utils.text import mask_word
 
@@ -124,6 +125,8 @@ class Tachistostory:
         self.background_music = config.music.background_music
         self.loop = config.music.loop
         self.volume = config.music.volume
+        self.music_fade_state: bool = False
+        self.music_fade_duration: int = 7000
 
     # ========================================================================
     # WINDOW MANAGEMENT
@@ -134,7 +137,8 @@ class Tachistostory:
         self.screen = pygame.display.set_mode(
             [self.screen_width, self.screen_height], RESIZABLE
         )
-        self.logo_icon = load_image_asset(config.paths.logo_title)
+        # Window icon (uses ico/icns for better quality)
+        self.logo_icon = load_image_asset(config.paths.window_icon)
         pygame.display.set_icon(self.logo_icon)
         return self.screen
 
@@ -521,9 +525,6 @@ class Tachistostory:
 
             # Window resize
             elif event.type == pygame.VIDEORESIZE:
-                if current_state == "instruction":
-                    continue
-
                 self.screen_width = max(event.w, config.display.min_width)
                 self.screen_height = max(event.h, config.display.min_height)
                 self.screen = pygame.display.set_mode(
@@ -552,6 +553,7 @@ class Tachistostory:
                 msg = "Unknown error"
 
             text_surf = self.font_attes.render(msg, True, self.error_color)
+            text_surf.set_colorkey(self.color_key)
             text_rect = text_surf.get_rect(centerx=win_w // 2, bottom=win_h - win_h // 3)
             self.screen.blit(text_surf, text_rect)
             return True
@@ -570,6 +572,24 @@ class Tachistostory:
             self.load_music(config.music.background_music)
         except Exception as e:
             print(f"⚠ Errore caricamento musica: {e}")
+    
+    def music_fade_out(self, fade_duration_ms: int = 1000) -> None:
+        """Fade out on instruction or presentation state."""
+        try:
+            if not self.state_machine:
+                return
+            
+            current_state = self.state_machine.get_current_state_name()
+            allowed_states = ("instruction", "presentation")
+            
+            if current_state not in allowed_states:
+                return
+            
+            if pygame.mixer.music.get_busy():
+                pygame.mixer.music.fadeout(fade_duration_ms)
+                
+        except Exception as e:
+            print(f'⚠ Error fade music: {e}')
 
     # ========================================================================
     # STATE TRANSITION FADE
@@ -675,7 +695,7 @@ class Tachistostory:
 
                 delta_time = clock.get_time() / 1000.0
                 self._update_fade(delta_time)
-
+                
                 if self._render_error_overlay(clock):
                     if self.screen:
                         self._render_fade_overlay(self.screen)
@@ -683,6 +703,8 @@ class Tachistostory:
                     clock.tick(60)
                     continue
 
+                self.music_fade_out(self.music_fade_duration)
+                    
                 self.state_machine.update(delta_time)
                 self.state_machine.render()
                 if self.screen:

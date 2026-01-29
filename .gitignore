@@ -53,3 +53,5 @@ htmlcov/
 build/
 dist/
 game_old.py
+
+make_icons.sh
