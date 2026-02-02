@@ -54,4 +54,9 @@ build/
 dist/
 game_old.py
 
+# Icon maker script
 make_icons.sh
+
+# Session log files
+logs/
+

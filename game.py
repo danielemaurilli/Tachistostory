@@ -29,19 +29,29 @@ pygame.init()
 pygame.font.init()
 pygame.mixer.init()
 
-# Screen dimensions (captured before window creation)
-SCREEN_MAX_W = config.display.max_width
-SCREEN_MAX_H = config.display.max_height
+# Screen dimensions (captured from actual display)
+_display_info = pygame.display.Info()
+SCREEN_MAX_W = _display_info.current_w
+SCREEN_MAX_H = _display_info.current_h
 
 
 class Tachistostory:
     """Main tachistoscope application - window, assets, state machine coordinator."""
 
+    # Reference resolution for scaling (design target)
+    # Lower values = larger fonts at same window size
+    REFERENCE_WIDTH = 1280
+    REFERENCE_HEIGHT = 720
+
     def __init__(self):
         # ==================== WINDOW ====================
         self.screen: Optional[pygame.Surface] = None
-        self.base_width = config.display.base_width
-        self.base_height = config.display.base_height
+        # Use 80% of screen size as base, maintaining aspect ratio
+        self.base_width = int(SCREEN_MAX_W * 0.8)
+        self.base_height = int(SCREEN_MAX_H * 0.8)
+        # Minimum size = base size (cannot shrink below initial size)
+        self.min_width = self.base_width
+        self.min_height = self.base_height
         self.screen_width = self.base_width
         self.screen_height = self.base_height
         self.full_screen = False
@@ -180,11 +190,37 @@ class Tachistostory:
         if self.screen is None:
             return
 
+        # Get actual surface size for rendering
         new_w, new_h = self.screen.get_size()
+        
+        # Also check window size (may differ from surface on macOS during resize)
+        try:
+            win_w, win_h = pygame.display.get_window_size()
+            # If window is larger than surface, the surface needs to be resized
+            if win_w != new_w or win_h != new_h:
+                # Enforce minimum size
+                target_w = max(win_w, self.min_width)
+                target_h = max(win_h, self.min_height)
+                if target_w != new_w or target_h != new_h:
+                    self.screen = pygame.display.set_mode((target_w, target_h), RESIZABLE)
+                    if self.state_machine:
+                        self.state_machine.screen = self.screen
+                    new_w, new_h = target_w, target_h
+        except Exception:
+            pass
+        
         self.screen_width = new_w
         self.screen_height = new_h
 
-        scale = min(new_w / self.base_width, new_h / self.base_height)
+        # Skip if size hasn't changed
+        if (new_w, new_h) == self.last_layout_size:
+            return
+        self.last_layout_size = (new_w, new_h)
+
+        # Scale relative to reference resolution for consistent sizing
+        scale = min(new_w / self.REFERENCE_WIDTH, new_h / self.REFERENCE_HEIGHT)
+        # Ensure minimum scale to keep text readable
+        scale = max(scale, 0.4)
 
         self._aggiorna_fonts(scale)
         self._aggiorna_slider_layout(scale)
@@ -212,6 +248,7 @@ class Tachistostory:
 
     def _aggiorna_slider_layout(self, scale: float) -> None:
         """Update slider layout based on scale factor."""
+        # Use surface/screen dimensions for slider layout
         base_x = int(self.screen_width * config.display.slider_margin_ratio)
         base_width = int(self.screen_width * config.display.slider_width_ratio)
         self.slider_width = int(base_width * 0.60)
@@ -470,9 +507,7 @@ class Tachistostory:
                 self.num_parole = len(self.lista_parole)
                 if self.state_machine:
                     self.state_machine.change_state("instruction")
-                if not self.full_screen:
-                    self.get_full_screen()
-                    self.aggiorna_layout()
+                # Layout is now updated automatically in state_machine._change_state_immediate
             else:
                 self._show_error(Error.EMPTY, "")
 
@@ -513,10 +548,6 @@ class Tachistostory:
                 # Iconify
                 if event.key == pygame.K_i:
                     self.iconifize()
-                # Fullscreen toggle (except in instruction state)
-                elif event.key == pygame.K_f and current_state != "instruction":
-                    self.get_full_screen()
-                    self.aggiorna_layout()
                 # Reset game
                 elif event.key == pygame.K_e:
                     self.reset()
@@ -525,14 +556,32 @@ class Tachistostory:
 
             # Window resize
             elif event.type == pygame.VIDEORESIZE:
-                self.screen_width = max(event.w, config.display.min_width)
-                self.screen_height = max(event.h, config.display.min_height)
+                self.screen_width = max(event.w, self.min_width)
+                self.screen_height = max(event.h, self.min_height)
                 self.screen = pygame.display.set_mode(
                     (self.screen_width, self.screen_height), RESIZABLE
                 )
                 if self.state_machine:
                     self.state_machine.screen = self.screen
                 self.aggiorna_layout()
+            
+            # Also handle WINDOWRESIZED for better compatibility
+            elif event.type == pygame.WINDOWRESIZED:
+                self.screen = pygame.display.get_surface()
+                if self.screen:
+                    new_w, new_h = self.screen.get_size()
+                    # Enforce minimum size
+                    if new_w < self.min_width or new_h < self.min_height:
+                        self.screen_width = max(new_w, self.min_width)
+                        self.screen_height = max(new_h, self.min_height)
+                        self.screen = pygame.display.set_mode(
+                            (self.screen_width, self.screen_height), RESIZABLE
+                        )
+                    else:
+                        self.screen_width, self.screen_height = new_w, new_h
+                    if self.state_machine:
+                        self.state_machine.screen = self.screen
+                    self.aggiorna_layout()
 
     def _render_error_overlay(self, clock: pygame.time.Clock) -> bool:
         """Render error messages if present. Returns True if handled."""
@@ -673,7 +722,7 @@ class Tachistostory:
         self.caption_window()
         self.font = pygame.font.Font(self.font_path, self.base_font)
         self.load_assets()
-        self._update_slider_position()
+        self.aggiorna_layout()  # Initialize slider and UI layout
         self._build_state_machine()
         self.music_exe()
 
@@ -692,6 +741,9 @@ class Tachistostory:
 
                 self.handle_global_events(events)
                 self.state_machine.handle_events(events)
+
+                # Check for size changes (handles cases where resize events are missed)
+                self.aggiorna_layout()
 
                 delta_time = clock.get_time() / 1000.0
                 self._update_fade(delta_time)

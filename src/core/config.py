@@ -19,12 +19,13 @@ _SCREEN_INFO = pygame.display.Info()
 
 @dataclass
 class DisplayConfig:
-    base_width: int = 1920
-    base_height: int = 1080
-    min_width: int = 1600
-    min_height: int = 1200
-    max_width: int = 1920
-    max_height: int = 1080
+    # Use actual screen dimensions
+    base_width: int = int(_SCREEN_INFO.current_w * 0.8)
+    base_height: int = int(_SCREEN_INFO.current_h * 0.8)
+    min_width: int = 800
+    min_height: int = 600
+    max_width: int = _SCREEN_INFO.current_w
+    max_height: int = _SCREEN_INFO.current_h
     fullscreen_menubar_margin: int = 50
 
     logo_width_ratio: float = 0.4
@@ -58,12 +59,12 @@ class TimingConfig:
 @dataclass
 class FontConfig:
     font_path: str = "assets/fonts/static/Cinzel-SemiBold.ttf"
-    main_size: int = 70
-    slider_label_size: int = 20
-    menu_size: int = 40
-    about_size: int = 22
-    instruction_size: int = 28
-    pause_size: int = 60
+    main_size: int = 45
+    slider_label_size: int = 13
+    menu_size: int = 26
+    about_size: int = 14
+    instruction_size: int = 18
+    pause_size: int = 38
 
 
 @dataclass

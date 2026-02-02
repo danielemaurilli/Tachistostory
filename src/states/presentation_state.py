@@ -34,18 +34,24 @@ class PresentationState(BaseState):
 
     def handle_events(self, events: list[pygame.event.Event]) -> None:
         for event in events:
-            # Slider mouse handling
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                mouse_x, mouse_y = event.pos
-                if self._is_on_slider_knob(mouse_x, mouse_y):
-                    self.slider_dragging = True
+            # Slider mouse handling (only when not paused)
+            if not self.app.in_pausa:
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    # Convert window coordinates to surface coordinates
+                    mouse_x, mouse_y = self._window_to_surface_coords(event.pos)
+                    
+                    if self._is_on_slider_knob(mouse_x, mouse_y):
+                        self.slider_dragging = True
+                    elif self._is_on_slider_track(mouse_x, mouse_y):
+                        self._update_slider_from_mouse(mouse_x)
+                        self.slider_dragging = True
 
-            elif event.type == pygame.MOUSEMOTION and self.slider_dragging:
-                mouse_x, _ = event.pos
-                self._update_slider_from_mouse(mouse_x)
+                elif event.type == pygame.MOUSEMOTION and self.slider_dragging:
+                    mouse_x, _ = self._window_to_surface_coords(event.pos)
+                    self._update_slider_from_mouse(mouse_x)
 
-            elif event.type == pygame.MOUSEBUTTONUP:
-                self.slider_dragging = False
+                elif event.type == pygame.MOUSEBUTTONUP:
+                    self.slider_dragging = False
 
             # Keyboard handling specific to presentation
             if event.type == pygame.KEYDOWN:
@@ -65,11 +71,43 @@ class PresentationState(BaseState):
                     self.app.back()
                     self.state_start_time = pygame.time.get_ticks()
 
+    def _window_to_surface_coords(self, pos: tuple) -> tuple:
+        """Convert mouse coordinates from window space to surface space."""
+        window_x, window_y = pos
+        try:
+            window_w, window_h = pygame.display.get_window_size()
+            surface = pygame.display.get_surface()
+            surface_w, surface_h = surface.get_size()
+            
+            # Calculate offset - surface may be positioned at bottom of window (macOS title bar)
+            y_offset = window_h - surface_h
+            
+            # Convert: subtract offset, then scale
+            surface_x = int(window_x * surface_w / window_w) if window_w > 0 else window_x
+            surface_y = window_y - y_offset
+            
+            return (surface_x, surface_y)
+        except Exception:
+            pass
+        return pos
+
     def _is_on_slider_knob(self, x: int, y: int) -> bool:
         """Check if position is on slider knob."""
+        # Use actual knob radius with a small margin for easier clicking
+        hit_radius = self.app.pomello_radius + 8
         return (
-            abs(x - self.app.posizione_cursore) < 20
-            and abs(y - self.app.y_slider) < 20
+            abs(x - self.app.posizione_cursore) < hit_radius
+            and abs(y - self.app.y_slider) < hit_radius
+        )
+
+    def _is_on_slider_track(self, x: int, y: int) -> bool:
+        """Check if position is on slider track."""
+        x_min = self.app.x_slider
+        x_max = self.app.x_slider + self.app.slider_width
+        track_height = 20  # Click tolerance for track
+        return (
+            x_min <= x <= x_max
+            and abs(y - self.app.y_slider) < track_height
         )
 
     def _update_slider_from_mouse(self, mouse_x: int) -> None:
@@ -158,26 +196,47 @@ class PresentationState(BaseState):
 
     def _render_centered_text(self, screen: pygame.Surface, text: str) -> None:
         """Render text centered on screen."""
+        win_w, win_h = screen.get_size()
         text_surf = self.app.font.render(text, True, config.display.text_color)
         text_surf.set_colorkey((self.app.color_key))
         text_rect = text_surf.get_rect(
-            center=(self.app.screen_width // 2, self.app.screen_height // 2)
+            center=(win_w // 2, win_h // 2)
         )
         screen.blit(text_surf, text_rect)
 
     def _render_slider(self, screen: pygame.Surface) -> None:
         """Render duration slider with ticks and labels."""
+        win_w, win_h = screen.get_size()
+        
+        # Recalculate slider position based on current screen size
+        base_x = int(win_w * config.display.slider_margin_ratio)
+        base_width = int(win_w * config.display.slider_width_ratio)
+        slider_width = int(base_width * 0.60)
+        x_slider = base_x + int((base_width - slider_width) / 2)
+        y_slider = int(win_h * config.display.slider_margin_ratio) + int(win_h * 0.15)
+        
+        # Update app values for interaction
+        self.app.x_slider = x_slider
+        self.app.slider_width = slider_width
+        self.app.y_slider = y_slider
+        
+        # Recalculate knob position
+        duration_range = config.timing.word_duration_max - config.timing.word_duration_min
+        factor = (self.app.durata_parola_ms - config.timing.word_duration_min) / duration_range
+        factor = max(0.0, min(1.0, factor))
+        self.app.posizione_cursore = x_slider + factor * slider_width
+        
         # Track
         pygame.draw.rect(
             screen,
             config.display.slider_track_color,
-            (self.app.x_slider, self.app.y_slider - 2, self.app.slider_width, 4),
+            (x_slider, y_slider - 2, slider_width, 4),
         )
 
         # Tick marks and labels
-        for factor in self.app.lista_fattori:
-            x_tick = self.app.x_slider + factor * self.app.slider_width
-            duration = config.timing.word_duration_min + factor * (
+        for fact in self.app.lista_fattori:
+            x_tick = x_slider + fact * slider_width
+            duration = config.timing.word_duration_min + fact * (
                 config.timing.word_duration_max - config.timing.word_duration_min
             )
 
@@ -185,57 +244,67 @@ class PresentationState(BaseState):
             pygame.draw.rect(
                 screen,
                 config.display.slider_track_color,
-                (x_tick - 2, self.app.y_slider - 8, 2, 16),
+                (x_tick - 2, y_slider - 8, 2, 16),
             )
 
             # Duration label
             label = self.app.font_ms.render(f"{int(duration)} ms", True, config.display.text_color)
             label.set_colorkey(self.app.color_key)
-            label_rect = label.get_rect(centerx=x_tick, top=self.app.y_slider + 20)
+            label_rect = label.get_rect(centerx=x_tick, top=y_slider + 20)
             screen.blit(label, label_rect)
 
         # Knob
         pygame.draw.circle(
             screen,
             config.display.slider_knob_color,
-            (int(self.app.posizione_cursore), self.app.y_slider),
+            (int(self.app.posizione_cursore), y_slider),
             self.app.pomello_radius,
         )
 
     def _render_word_panel(self, screen: pygame.Surface) -> None:
         """Render word count panel."""
+        win_w, win_h = screen.get_size()
         human_index = self.app.indice_parola + 1
         total = len(self.app.lista_parole)
         text_surf = self.app.font.render(f"Word: {human_index}/{total}", True, config.display.text_color)
         text_surf.set_colorkey(self.app.color_key)
         text_surf.set_alpha(230)
+        # Use relative positioning
+        offset_x = int(win_w * 0.15)
+        offset_y = int(win_h * 0.05)
         text_rect = text_surf.get_rect(
-            centerx=self.app.screen_width // 2 - 250,
-            bottom=self.app.screen_height - 50,
+            centerx=win_w // 2 - offset_x,
+            bottom=win_h - offset_y - 50,
         )
         screen.blit(text_surf, text_rect)
 
     def _render_phrases_panel(self, screen: pygame.Surface) -> None:
         """Render phrase count panel."""
+        win_w, win_h = screen.get_size()
         total = self.app.phrases_total
         phrases = (self.app.phrases_index + 1) if total > 0 else 0
         text_surf = self.app.font.render(f"Phrases: {phrases}/{total}", True, config.display.text_color)
         text_surf.set_colorkey(self.app.color_key)
         text_surf.set_alpha(230)
+        # Use relative positioning
+        offset_x = int(win_w * 0.15)
+        offset_y = int(win_h * 0.05)
         text_rect = text_surf.get_rect(
-            centerx=self.app.screen_width // 2 + 250,
-            bottom=self.app.screen_height - 50,
+            centerx=win_w // 2 + offset_x,
+            bottom=win_h - offset_y - 50,
         )
         screen.blit(text_surf, text_rect)
 
     def _render_end_panel(self, screen: pygame.Surface) -> None:
         """Render end of words message."""
+        win_w, win_h = screen.get_size()
         text_surf = self.app.font.render("The words are ended", True, config.display.text_color)
         text_surf.set_colorkey(self.app.color_key)
         text_surf.set_alpha(230)
+        offset_y = int(win_h * 0.05)
         text_rect = text_surf.get_rect(
-            centerx=self.app.screen_width // 2,
-            bottom=self.app.screen_height - 50,
+            centerx=win_w // 2,
+            bottom=win_h - offset_y - 50,
         )
         screen.blit(text_surf, text_rect)
 

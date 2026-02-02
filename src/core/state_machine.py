@@ -58,6 +58,9 @@ class StateMachine:
         self._current_state = self._states[name]
         self._current_state_name = name
         self._current_state.on_enter()
+        # Ensure layout is updated after state change
+        if hasattr(self.app, 'aggiorna_layout'):
+            self.app.aggiorna_layout()
 
     def get_current_state_name(self) -> Optional[str]:
         return self._current_state_name
