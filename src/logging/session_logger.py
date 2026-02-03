@@ -100,6 +100,7 @@ class ReasonState(str, Enum):
 class PauseEvent:
     pause_id: Optional[uuid.UUID] = None
     session_id: Optional[uuid.UUID] = None
+    is_in_pause: bool = False
     start_ms: Optional[int] = 0
     end_ms: Optional[int] = 0 
     reason: Optional[ReasonState] = None
@@ -246,6 +247,7 @@ class SessionData:
     # Input/Context
     # These are intended to be set when a stimulus/source file is selected.
     input_file_name: str = ''
+    input_file_relpath: str = ""
     input_file_hash: Optional[str] = None
     input_file_size_bytes: Optional[int] = None
     input_file_origin: str = "unknown"
@@ -287,15 +289,16 @@ class SessionData:
         self.input_file_relpath = ""
         self.input_file_origin = "external_drop"
 
-    def avg_actual_duration_ms(self, 
-                               total_paused_ms:int = total_paused_ms, 
-                               ended: int = ended_at_ms,
-                               started: int = started_at_ms) -> int:
-       avg = (ended-started) - total_paused_ms
-       if avg > 0: 
-        return avg
-       else:
-           return 0
+    def avg_actual_duration_ms(self) -> float:
+        """Calcola la durata media effettiva degli eventi word nella sessione."""
+        if not self.word_events:
+            return 0.0
+        
+        durations = [e.actual_duration_ms for e in self.word_events if e.actual_duration_ms is not None]
+        if not durations:
+            return 0.0
+        
+        return sum(durations) / len(durations)
        
     def accuracy_calc(self, press_space: int, press_back: int, total_words: int) -> str:
         if total_words <= 0:
@@ -447,3 +450,289 @@ def export_session_summary_csv(
         writer.writerow(row)
 
     return path
+
+
+@dataclass
+class SessionLogger():
+    session: SessionData
+    _pause_start_ms: Optional[int] = None
+    _pause_reason: Optional[ReasonState] = None
+
+    def start_session(self, session_id: uuid.UUID, started_at_ms:int) -> None:
+        """Initialize session and time"""
+        self.session.session_id = session_id
+        self.session.started_at_ms = started_at_ms
+
+    def trial_index(self) -> int:
+        """Return the current trial index for the next WordEvent.
+
+        In this logger, trial_index corresponds to the number of WordEvents already logged.
+        """
+        return len(self.session.word_events)
+
+    def set_in_pause(self, is_in_pause: bool, now_ms: int, reason: Optional[ReasonState] = None) -> None:
+        """Update pause state.
+
+        Call this when the game enters/leaves pause.
+        - When entering pause (is_in_pause=True), we store the start tick.
+        - When leaving pause (is_in_pause=False), we create a PauseEvent and append it.
+        """
+        if is_in_pause:
+            # Entering pause
+            if self._pause_start_ms is None:
+                self._pause_start_ms = now_ms
+                self._pause_reason = reason
+            return
+
+        # Leaving pause
+        if self._pause_start_ms is None:
+            # Not previously in pause; nothing to close.
+            return
+
+        pe = PauseEvent(
+            pause_id=uuid.uuid4(),
+            session_id=self.session.session_id,
+            start_ms=self._pause_start_ms,
+            end_ms=now_ms,
+            reason=self._pause_reason,
+        )
+        self.session.pause_events.append(pe)
+
+        # Reset pause tracking
+        self._pause_start_ms = None
+        self._pause_reason = None
+
+    def log_word_event(
+        self,
+        stimulus_text: str,
+        shown_at_ms: int,
+        hidden_at_ms: int,
+        *,
+        stimulus_type: StimulusType = StimulusType.WORD,
+        stimulus_source: str = "",
+        duration_ms: int = 0,
+        word_level_speed: Optional[int] = None,
+        game_state: Optional["State"] = None,
+        response_status: ResponseStatus = ResponseStatus.NULL,
+        response_time_ms: Optional[int] = None,
+        is_correct: Optional[bool] = None,
+        error_type: ErrorType = ErrorType.NULL,
+    ) -> WordEvent:
+        """Create and append a WordEvent to the current session.
+
+        - session_id is taken from the active SessionData
+        - trial_index is derived from the number of word_events already logged
+        """
+        we = WordEvent(
+            session_id=self.session.session_id,
+            trial_index=self.trial_index(),
+            stimulus_text=stimulus_text,
+            stimulus_type=stimulus_type,
+            stimulus_source=stimulus_source,
+            duration_ms=duration_ms,
+            shown_at_ms=shown_at_ms,
+            hidden_at_ms=hidden_at_ms,
+            word_level_speed=word_level_speed,
+            game_state=game_state,
+            response_status=response_status,
+            response_time_ms=response_time_ms,
+            is_correct=is_correct,
+            error_type=error_type,
+        )
+        self.session.word_events.append(we)
+        return we
+    
+    def log_pause(
+        self,
+        start_ms: int,
+        end_ms: int,
+        *,
+        reason: Optional[ReasonState] = None,
+        pause_id: Optional[uuid.UUID] = None,
+    ) -> PauseEvent:
+        """Create, append, and return a PauseEvent for the current session."""
+        pe = PauseEvent(
+            pause_id=pause_id or uuid.uuid4(),
+            session_id=self.session.session_id,
+            start_ms=start_ms,
+            end_ms=end_ms,
+            reason=reason,
+        )
+        self.session.pause_events.append(pe)
+        return pe
+    
+    def end_session(self, ended_at_ms: int) -> None:
+        """Finalize the current session and compute summary metrics.
+
+        - Closes an open pause (if any)
+        - Sets ended_at_ms
+        - Computes total_words, total_paused_ms, total_active_ms
+        - Computes accuracy from is_correct when available
+        """
+        # Require an active session
+        if self.session.session_id is None:
+            return
+
+        # If a pause is currently open, close it at session end
+        if self._pause_start_ms is not None:
+            self.set_in_pause(False, ended_at_ms)
+
+        self.session.ended_at_ms = ended_at_ms
+
+        # total words/trials
+        self.session.total_words = len(self.session.word_events)
+
+        # total paused ms
+        total_paused = 0
+        for p in self.session.pause_events:
+            total_paused += (p.duration_ms() or 0)
+        self.session.total_paused_ms = total_paused
+
+        # total active ms (clamped)
+        total_session_ms = self.session.ended_at_ms - self.session.started_at_ms
+        active_ms = total_session_ms - self.session.total_paused_ms
+        self.session.total_active_ms = active_ms if active_ms > 0 else 0
+
+        # accuracy: prefer per-event correctness when present
+        attempted = 0
+        correct = 0
+        for e in self.session.word_events:
+            if e.is_correct is True:
+                attempted += 1
+                correct += 1
+            elif e.is_correct is False:
+                attempted += 1
+
+        if attempted > 0:
+            score = (correct / attempted) * 100
+            self.session.accuracy = f"{score:.1f}%"
+        else:
+            self.session.accuracy = "0%"
+
+    def export_csv(self, output_dir: Path | str, include_display_name: bool = True) -> tuple[Path, Path, Path]:
+        """Export current session logs to CSV files.
+
+        Call this after `end_session(...)` so summary metrics are finalized.
+
+        Returns:
+            (word_events_csv_path, pause_events_csv_path, summary_csv_path)
+        """
+        # Require an active session
+        if self.session.session_id is None:
+            raise RuntimeError("No active session to export")
+
+        # 1) Normalize output_dir
+        out_dir = Path(output_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        # 2) Build stable filenames
+        date_tag = self.session.date_local or datetime.now().date().isoformat()
+        sid = str(self.session.session_id)
+
+        words_path = out_dir / f"{date_tag}_session-{sid}_word_events.csv"
+        pauses_path = out_dir / f"{date_tag}_session-{sid}_pause_events.csv"
+        summary_path = out_dir / f"{date_tag}_session-{sid}_summary.csv"
+
+        # 3) Export
+        export_word_events_csv(
+            events=self.session.word_events,
+            session=self.session,
+            csv_path=words_path,
+            include_display_name=include_display_name,
+        )
+        export_pause_events_csv(
+            events=self.session.pause_events,
+            session=self.session,
+            csv_path=pauses_path,
+            include_display_name=include_display_name,
+        )
+        export_session_summary_csv(
+            session=self.session,
+            word_events=self.session.word_events,
+            pause_events=self.session.pause_events,
+            csv_path=summary_path,
+        )
+
+        return words_path, pauses_path, summary_path
+
+    def export_json(self, output_path: Path | str) -> Path:
+        """Export the full session (session + events) as JSON.
+
+        Privacy:
+        - `participant_code_raw` is never exported
+        - no absolute file paths are exported (only name/relpath/hash/size/origin)
+        """
+        if self.session.session_id is None:
+            raise RuntimeError("No active session to export")
+
+        path = Path(output_path)
+        _ensure_parent_dir(path)
+
+        # ---- Serialize session (exclude participant_code_raw) ----
+        session_dict: dict[str, Any] = {
+            "session_id": str(self.session.session_id),
+            "participant_pseudonym": int(self.session.participant_pseudonym) if self.session.participant_pseudonym is not None else None,
+            "participant_display_name": self.session.participant_display_name,
+            "started_at_ms": self.session.started_at_ms,
+            "ended_at_ms": self.session.ended_at_ms,
+            "date_local": self.session.date_local,
+            # input/context (no absolute paths)
+            "input_file_name": self.session.input_file_name,
+            "input_file_relpath": self.session.input_file_relpath,
+            "input_file_hash": self.session.input_file_hash,
+            "input_file_size_bytes": self.session.input_file_size_bytes,
+            "input_file_origin": self.session.input_file_origin,
+            "platform_os": self.session.platform_os,
+            # config
+            "profile_name": self.session.profile_name,
+            "setting_snapshot": self.session.setting_snapshot,
+            # metrics
+            "total_words": self.session.total_words,
+            "total_paused_ms": self.session.total_paused_ms,
+            "total_active_ms": self.session.total_active_ms,
+            "accuracy": self.session.accuracy,
+            "notes": self.session.notes,
+        }
+
+        # ---- Serialize events ----
+        word_events_out: list[dict[str, Any]] = []
+        for e in self.session.word_events:
+            word_events_out.append({
+                "session_id": str(e.session_id) if e.session_id else None,
+                "event_id": str(e.event_id),
+                "trial_index": e.trial_index,
+                "stimulus_text": e.stimulus_text,
+                "stimulus_type": e.stimulus_type.value,
+                "stimulus_source": e.stimulus_source,
+                "duration_ms": e.duration_ms,
+                "shown_at_ms": e.shown_at_ms,
+                "hidden_at_ms": e.hidden_at_ms,
+                "actual_duration_ms": e.actual_duration_ms,
+                "word_level_speed": e.word_level_speed,
+                "game_state": str(e.game_state) if e.game_state is not None else None,
+                "response_status": e.response_status.value,
+                "response_time_ms": e.response_time_ms,
+                "is_correct": e.is_correct,
+                "error_type": e.error_type.value,
+            })
+
+        pause_events_out: list[dict[str, Any]] = []
+        for p in self.session.pause_events:
+            pause_events_out.append({
+                "pause_id": str(p.pause_id) if p.pause_id else None,
+                "session_id": str(p.session_id) if p.session_id else None,
+                "is_in_pause": p.is_in_pause,
+                "start_ms": p.start_ms,
+                "end_ms": p.end_ms,
+                "duration_ms": p.duration_ms(),
+                "reason": p.reason.value if p.reason is not None else None,
+            })
+
+        payload: dict[str, Any] = {
+            "session": session_dict,
+            "word_events": word_events_out,
+            "pause_events": pause_events_out,
+        }
+
+        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        return path
