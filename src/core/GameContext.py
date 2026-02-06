@@ -1,11 +1,25 @@
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
 from src.logging.session_logger import DisplayNameRegistry, SessionData, SessionLogger
 from src.core.form_manager import FormManager
+
+
+def _default_output_dir() -> Path:
+    """Return a writable output directory for session logs.
+
+    - Bundled app (PyInstaller / Nuitka): ~/Documents/tachistostory log
+    - Development:  sibling folder next to the project root
+    """
+    is_bundled = getattr(sys, "frozen", False) or getattr(sys, "__compiled__", False)
+    if is_bundled:
+        return Path.home() / "Documents" / "tachistostory log"
+    # Dev: <project_root>/../tachistostory log
+    return Path(__file__).resolve().parent.parent.parent.parent / "tachistostory log"
 
 
 @dataclass
@@ -30,8 +44,8 @@ class GameContext:
     selected_file_path: Optional[Path] = None
     include_display_name: bool = True
 
-    #Output directory — sibling folder to project root
-    output_dir: Path = field(default_factory=lambda: Path(__file__).resolve().parent.parent.parent.parent / "tachistostory log")
+    # Output directory — writable location for session logs
+    output_dir: Path = field(default_factory=_default_output_dir)
 
     def __post_init__(self) -> None:
         # Always bind logger to the current session
