@@ -1,28 +1,27 @@
 """
 Tachistostory - Core Game Application
-Main tachistoscope application class - manages window, assets, and state machine.
+Main tachistoscope application class - coordinates managers and state machine.
 """
 
 import os
 import sys
 import traceback
-from typing import List, Optional, Tuple
+from typing import Optional
 
 import pygame
 from pygame.locals import RESIZABLE
 
 from src.core.config import config
 from src.core.enums import Error, State
-from src.loaders.file_loader import FileLoader, LoadedText
-from src.utils.images import (
-    extract_sprite_frames,
-    load_image_asset,
-    scale_image_cover,
-    scale_surface_to_fit,
-)
-from src import states
-from src.utils.paths import resource_path
-from src.utils.text import mask_word
+from src.core.window_manager import WindowManager
+from src.core.asset_manager import AssetManager
+from src.core.layout_manager import LayoutManager
+from src.core.word_manager import WordManager
+from src.core.music_manager import MusicManager
+from src.core.fade_controller import FadeController
+from src.core.GameContext import GameContext
+from src.core.session_controller import SessionController
+
 
 # Initialize Pygame
 pygame.init()
@@ -36,83 +35,25 @@ SCREEN_MAX_H = _display_info.current_h
 
 
 class Tachistostory:
-    """Main tachistoscope application - window, assets, state machine coordinator."""
-
-    # Reference resolution for scaling (design target)
-    # Lower values = larger fonts at same window size
-    REFERENCE_WIDTH = 1280
-    REFERENCE_HEIGHT = 720
+    """Main tachistoscope application - coordinates managers and state machine."""
 
     def __init__(self):
-        # ==================== WINDOW ====================
-        self.screen: Optional[pygame.Surface] = None
-        # Use 80% of screen size as base, maintaining aspect ratio
-        self.base_width = int(SCREEN_MAX_W * 0.8)
-        self.base_height = int(SCREEN_MAX_H * 0.8)
-        # Minimum size = base size (cannot shrink below initial size)
-        self.min_width = self.base_width
-        self.min_height = self.base_height
-        self.screen_width = self.base_width
-        self.screen_height = self.base_height
-        self.full_screen = False
-        self.last_layout_size: Tuple[int, int] = (self.screen_width, self.screen_height)
+        # ==================== MANAGERS ====================
+        self.window = WindowManager(SCREEN_MAX_W, SCREEN_MAX_H)
+        self.assets = AssetManager()
+        self.layout = LayoutManager()
+        self.words = WordManager()
+        self.music = MusicManager()
+        self.fade = FadeController()
+        self.context = GameContext()
+        self.context.secret_key = os.urandom(32)
+        self.controller = SessionController(self.context)
 
-        # ==================== COLORS ====================
-        self.bg_color = config.display.bg_color
-        self.menu_bg_color = config.display.menu_bg_color
-        self.error_color = config.display.error_color
-        self.prompt_color = config.display.prompt_color
-        self.text_color = config.display.text_color
-        self.color_key = config.display.color_key
-
-        # ==================== ASSETS ====================
-        self.logo_image: Optional[pygame.Surface] = None
-        self.logo_icon: Optional[pygame.Surface] = None
-        self.bg_menu: Optional[pygame.Surface] = None
-        self.bg_tavolo: Optional[pygame.Surface] = None
-        self.bg_istructions: Optional[pygame.Surface] = None
-        self.book_frames: List[pygame.Surface] = []
-        self.book_frames_scaled: List[pygame.Surface] = []
-        self.sprite_libro_chiuso: Optional[pygame.Surface] = None
-        self.book_open_bg: Optional[pygame.Surface] = None
-
-        # ==================== FONTS ====================
-        self.font_path = resource_path(config.font.font_path)
-        self.base_font = config.font.main_size
-        self.font: Optional[pygame.font.Font] = None
-        self.font_attes = pygame.font.Font(self.font_path, config.font.menu_size)
-        self.font_ms = pygame.font.Font(self.font_path, config.font.slider_label_size)
-        self.font_istruzioni = pygame.font.Font(self.font_path, config.font.instruction_size)
-        self.font_about = pygame.font.Font(self.font_path, config.font.about_size)
-        self.font_pausa = pygame.font.Font(self.font_path, config.font.pause_size)
-
-        # ==================== FILE/WORD DATA ====================
-        self.file_caricato = False
-        self.nome_file: Optional[str] = None
-        self.num_parole: Optional[int] = None
-        self.lista_parole: List[str] = []
-        self.indice_parola = 0
-        self.parola_corrente = ""
-        self.parola_mascherata = ""
-        self.phrases_list: List[str] = []
-        self.phrases_index = 0
-        self.phrases_total = 0
-        self.word_to_phrase_map: List[int] = []
-
-        # ==================== PRESENTATION STATE ====================
+        # ==================== STATE ====================
+        self.state_machine = None
         self.stato_presentazione = State.MENU_START
         self.in_pausa = False
         self.avanti = False
-        self.durata_parola_ms = config.timing.word_duration_default
-        self.durata_maschera_ms = config.timing.mask_duration
-
-        # ==================== SLIDER ====================
-        self.x_slider = 100
-        self.y_slider = 50
-        self.slider_width = int(config.slider.base_width * config.slider.width_scale_factor)
-        self.posizione_cursore = self.x_slider
-        self.pomello_radius = config.slider.knob_radius
-        self.lista_fattori = list(config.slider.tick_factors)
 
         # ==================== ERROR HANDLING ====================
         self.mostra_errore = False
@@ -120,23 +61,246 @@ class Tachistostory:
         self.tipo_errore: Optional[Error] = None
         self.tempo_errore = 0
 
-        # ==================== STATE MACHINE ====================
-        self.state_machine = None
+    # ========================================================================
+    # COMPATIBILITY PROPERTIES (for existing states)
+    # ========================================================================
+    
+    # Window properties
+    @property
+    def screen(self) -> Optional[pygame.Surface]:
+        return self.window.screen
+    
+    @property
+    def screen_width(self) -> int:
+        return self.window.width
+    
+    @property
+    def screen_height(self) -> int:
+        return self.window.height
+    
+    @property
+    def min_width(self) -> int:
+        return self.window.min_width
+    
+    @property
+    def min_height(self) -> int:
+        return self.window.min_height
 
-        # ==================== STATE TRANSITION FADE ====================
-        self.fade_enabled = True
-        self.fade_active = False
-        self.fade_direction = "out"
-        self.fade_alpha = 0.0
-        self.fade_next_state: Optional[str] = None
-        self.fade_duration_ms = config.timing.state_fade_duration
+    # Colors (from config)
+    @property
+    def bg_color(self):
+        return config.display.bg_color
+    
+    @property
+    def menu_bg_color(self):
+        return config.display.menu_bg_color
+    
+    @property
+    def error_color(self):
+        return config.display.error_color
+    
+    @property
+    def prompt_color(self):
+        return config.display.prompt_color
+    
+    @property
+    def text_color(self):
+        return config.display.text_color
+    
+    @property
+    def color_key(self):
+        return config.display.color_key
 
-        #===================== MUSIC ========================================
-        self.background_music = config.music.background_music
-        self.loop = config.music.loop
-        self.volume = config.music.volume
-        self.music_fade_state: bool = False
-        self.music_fade_duration: int = 7000
+    # Assets
+    @property
+    def logo_image(self):
+        return self.assets.logo_image
+    
+    @property
+    def bg_menu(self):
+        return self.assets.bg_menu
+    
+    @property
+    def bg_tavolo(self):
+        return self.assets.bg_tavolo
+    
+    @property
+    def bg_istructions(self):
+        return self.assets.bg_istructions
+    
+    @property
+    def book_open_bg(self):
+        return self.assets.book_open_bg
+    
+    @property
+    def book_frames(self):
+        return self.assets.book_frames
+    
+    @property
+    def book_frames_scaled(self):
+        return self.assets.book_frames_scaled
+    
+    @property
+    def sprite_libro_chiuso(self):
+        return self.assets.sprite_libro_chiuso
+
+    # Fonts
+    @property
+    def font(self):
+        return self.layout.font
+    
+    @property
+    def font_attes(self):
+        return self.layout.font_attes
+    
+    @property
+    def font_ms(self):
+        return self.layout.font_ms
+    
+    @property
+    def font_istruzioni(self):
+        return self.layout.font_istruzioni
+    
+    @property
+    def font_about(self):
+        return self.layout.font_about
+    
+    @property
+    def font_pausa(self):
+        return self.layout.font_pausa
+
+    # Slider
+    @property
+    def x_slider(self):
+        return self.layout.x_slider
+    
+    @x_slider.setter
+    def x_slider(self, value):
+        self.layout.x_slider = value
+    
+    @property
+    def y_slider(self):
+        return self.layout.y_slider
+    
+    @y_slider.setter
+    def y_slider(self, value):
+        self.layout.y_slider = value
+    
+    @property
+    def slider_width(self):
+        return self.layout.slider_width
+    
+    @slider_width.setter
+    def slider_width(self, value):
+        self.layout.slider_width = value
+    
+    @property
+    def posizione_cursore(self):
+        return self.layout.posizione_cursore
+    
+    @posizione_cursore.setter
+    def posizione_cursore(self, value):
+        self.layout.posizione_cursore = value
+    
+    @property
+    def pomello_radius(self):
+        return self.layout.pomello_radius
+    
+    @property
+    def lista_fattori(self):
+        return self.layout.lista_fattori
+
+    # Word/Phrase data
+    @property
+    def file_caricato(self) -> bool:
+        return self.words.file_loaded
+    
+    @file_caricato.setter
+    def file_caricato(self, value: bool):
+        self.words.file_loaded = value
+    
+    @property
+    def nome_file(self):
+        return self.words.file_name
+    
+    @nome_file.setter
+    def nome_file(self, value):
+        self.words.file_name = value
+    
+    @property
+    def num_parole(self):
+        return self.words.word_count
+    
+    @property
+    def lista_parole(self):
+        return self.words.words
+    
+    @property
+    def indice_parola(self):
+        return self.words.current_index
+    
+    @indice_parola.setter
+    def indice_parola(self, value):
+        self.words.set_index(value)
+    
+    @property
+    def parola_corrente(self):
+        return self.words.current_word
+    
+    @property
+    def parola_mascherata(self):
+        return self.words.masked_word
+    
+    @property
+    def phrases_list(self):
+        return self.words.phrases
+    
+    @property
+    def phrases_index(self):
+        return self.words.phrase_index
+    
+    @property
+    def phrases_total(self):
+        return self.words.phrase_count
+    
+    @property
+    def word_to_phrase_map(self):
+        return self.words.word_to_phrase_map
+
+    # Timing
+    @property
+    def durata_parola_ms(self):
+        return self.layout.durata_parola_ms
+    
+    @durata_parola_ms.setter
+    def durata_parola_ms(self, value):
+        self.layout.durata_parola_ms = value
+    
+    @property
+    def durata_maschera_ms(self):
+        return config.timing.mask_duration
+
+    # Fade
+    @property
+    def fade_enabled(self):
+        return self.fade.enabled
+    
+    @fade_enabled.setter
+    def fade_enabled(self, value):
+        self.fade.enabled = value
+    
+    @property
+    def fade_active(self):
+        return self.fade.is_active
+    
+    @property
+    def fade_duration_ms(self):
+        return self.fade.duration_ms
+
+    # Music
+    @property
+    def music_fade_duration(self):
+        return self.music.fade_duration
 
     # ========================================================================
     # WINDOW MANAGEMENT
@@ -144,42 +308,23 @@ class Tachistostory:
 
     def get_screen(self) -> pygame.Surface:
         """Initialize and return the main display window."""
-        self.screen = pygame.display.set_mode(
-            [self.screen_width, self.screen_height], RESIZABLE
-        )
-        # Window icon (uses ico/icns for better quality)
-        self.logo_icon = load_image_asset(config.paths.window_icon)
-        pygame.display.set_icon(self.logo_icon)
-        return self.screen
+        return self.window.create_window()
 
     def caption_window(self) -> None:
         """Set the window caption/title."""
-        pygame.display.set_caption("Tachistostory")
+        self.window.set_caption()
 
     def iconifize(self) -> None:
         """Minimize the window."""
-        pygame.display.iconify()
+        self.window.iconify()
 
     def get_full_screen(self) -> None:
         """Toggle between normal and maximized window."""
-        if not self.full_screen:
-            self.screen_width = SCREEN_MAX_W
-            self.screen_height = SCREEN_MAX_H - config.display.fullscreen_menubar_margin
-            self.full_screen = True
-        else:
-            self.screen_width = self.base_width
-            self.screen_height = self.base_height
-            self.full_screen = False
-
-        self.screen = pygame.display.set_mode(
-            (self.screen_width, self.screen_height), RESIZABLE
-        )
-        if self.state_machine:
-            self.state_machine.screen = self.screen
+        self.window.toggle_fullscreen()
 
     def updating(self) -> None:
         """Update the display."""
-        pygame.display.update()
+        self.window.update()
 
     # ========================================================================
     # LAYOUT
@@ -187,115 +332,23 @@ class Tachistostory:
 
     def aggiorna_layout(self) -> None:
         """Update UI layout based on current window size."""
-        if self.screen is None:
+        if self.window.screen is None:
             return
-
-        # Get actual surface size for rendering
-        new_w, new_h = self.screen.get_size()
         
-        # Also check window size (may differ from surface on macOS during resize)
-        try:
-            win_w, win_h = pygame.display.get_window_size()
-            # If window is larger than surface, the surface needs to be resized
-            if win_w != new_w or win_h != new_h:
-                # Enforce minimum size
-                target_w = max(win_w, self.min_width)
-                target_h = max(win_h, self.min_height)
-                if target_w != new_w or target_h != new_h:
-                    self.screen = pygame.display.set_mode((target_w, target_h), RESIZABLE)
-                    if self.state_machine:
-                        self.state_machine.screen = self.screen
-                    new_w, new_h = target_w, target_h
-        except Exception:
-            pass
+        size_changed = self.window.check_size_changed()
+        layout_updated = self.layout.update(
+            self.window.width, 
+            self.window.height, 
+            self.window.scale_factor
+        )
         
-        self.screen_width = new_w
-        self.screen_height = new_h
-
-        # Skip if size hasn't changed
-        if (new_w, new_h) == self.last_layout_size:
-            return
-        self.last_layout_size = (new_w, new_h)
-
-        # Scale relative to reference resolution for consistent sizing
-        scale = min(new_w / self.REFERENCE_WIDTH, new_h / self.REFERENCE_HEIGHT)
-        # Ensure minimum scale to keep text readable
-        scale = max(scale, 0.4)
-
-        self._aggiorna_fonts(scale)
-        self._aggiorna_slider_layout(scale)
-        self._scala_backgrounds()
-        self._scale_book_frames()
-
-    def _aggiorna_fonts(self, scale: float) -> None:
-        """Update font sizes based on scale factor."""
-        self.font = pygame.font.Font(self.font_path, int(self.base_font * scale))
-        self.font_ms = pygame.font.Font(
-            self.font_path, int(config.font.slider_label_size * scale)
-        )
-        self.font_attes = pygame.font.Font(
-            self.font_path, int(config.font.menu_size * scale)
-        )
-        self.font_istruzioni = pygame.font.Font(
-            self.font_path, int(config.font.instruction_size * scale)
-        )
-        self.font_about = pygame.font.Font(
-            self.font_path, int(config.font.about_size * scale)
-        )
-        self.font_pausa = pygame.font.Font(
-            self.font_path, int(config.font.pause_size * scale)
-        )
-
-    def _aggiorna_slider_layout(self, scale: float) -> None:
-        """Update slider layout based on scale factor."""
-        # Use surface/screen dimensions for slider layout
-        base_x = int(self.screen_width * config.display.slider_margin_ratio)
-        base_width = int(self.screen_width * config.display.slider_width_ratio)
-        self.slider_width = int(base_width * 0.60)
-        self.x_slider = base_x + int((base_width - self.slider_width) / 2)
-        self.y_slider = int(self.screen_height * config.display.slider_margin_ratio) + int(self.screen_height * 0.15)
-        self.pomello_radius = int(12 * scale)
-        self._update_slider_position()
+        if size_changed or layout_updated:
+            self.assets.scale_backgrounds(self.window.width, self.window.height)
+            self.assets.scale_book_frames(self.window.width, self.window.height)
 
     def _update_slider_position(self) -> None:
         """Recalculate slider knob position from current duration."""
-        duration_range = config.timing.word_duration_max - config.timing.word_duration_min
-        factor = (self.durata_parola_ms - config.timing.word_duration_min) / duration_range
-        factor = max(0.0, min(1.0, factor))
-        self.posizione_cursore = self.x_slider + factor * self.slider_width
-
-    def _scala_backgrounds(self) -> None:
-        """Scale background images to current window size."""
-        if hasattr(self, "_bg_menu_original"):
-            self.bg_menu = scale_image_cover(
-                self._bg_menu_original, self.screen_width, self.screen_height
-            )
-        if hasattr(self, "_bg_tavolo_original"):
-            self.bg_tavolo = scale_image_cover(
-                self._bg_tavolo_original, self.screen_width, self.screen_height
-            )
-        if hasattr(self, "_bg_istructions_original"):
-            self.bg_istructions = scale_image_cover(
-                self._bg_istructions_original, self.screen_width, self.screen_height
-            )
-        if hasattr(self, "_book_open_original"):
-            self.book_open_bg = scale_image_cover(
-                self._book_open_original, self.screen_width, self.screen_height
-            )
-
-    def _scale_book_frames(self) -> None:
-        """Pre-scale book frames for current screen size."""
-        if not self.book_frames:
-            return
-        max_w = int(self.screen_width * 1.25)
-        max_h = int(self.screen_height * 1.25)
-        self.book_frames_scaled = []
-        for frame in self.book_frames:
-            scaled = scale_surface_to_fit(frame, max_w, max_h)
-            scaled.set_colorkey((0, 0, 0))
-            self.book_frames_scaled.append(scaled)
-        if self.book_frames_scaled:
-            self.sprite_libro_chiuso = self.book_frames_scaled[0]
+        self.layout._update_slider_position()
 
     # ========================================================================
     # WORD MANAGEMENT
@@ -303,90 +356,45 @@ class Tachistostory:
 
     def maschera_parola(self, parola: str) -> str:
         """Mask a word by replacing letters/digits with '#'."""
+        from src.utils.text import mask_word
         return mask_word(parola)
 
     def go(self) -> None:
         """Advance to next word."""
-        self.set_word_index(self.indice_parola + 1)
+        self.words.go_next()
 
     def back(self) -> None:
         """Go back to previous word."""
-        self.set_word_index(self.indice_parola - 1)
+        self.words.go_previous()
 
     def set_word_index(self, new_index: int) -> None:
         """Set current word index (clamped) and sync phrase index."""
-        if not self.lista_parole:
-            return
-
-        new_index = max(0, min(new_index, len(self.lista_parole) - 1))
-        self.indice_parola = new_index
-        self.parola_corrente = self.lista_parole[new_index]
-        self.parola_mascherata = self.maschera_parola(self.parola_corrente)
-        self._sync_phrase_index()
-
-    def _sync_phrase_index(self) -> None:
-        """Update phrases_index based on current word index."""
-        if self.word_to_phrase_map and 0 <= self.indice_parola < len(self.word_to_phrase_map):
-            self.phrases_index = self.word_to_phrase_map[self.indice_parola]
-        else:
-            self.phrases_index = 0
+        self.words.set_index(new_index)
 
     # ========================================================================
     # FILE LOADING
     # ========================================================================
 
-    def carica_parola_da_txt(self, nome_file: str) -> List[str]:
+    def carica_parola_da_txt(self, nome_file: str):
         """Load words from a plain text file."""
-        loaded = FileLoader.load_txt(nome_file)
-        self._apply_loaded_text(loaded)
-        return self.lista_parole
+        return self.words.load_txt(nome_file)
 
-    def carica_parola_da_word(self, percorso: str) -> List[str]:
+    def carica_parola_da_word(self, percorso: str):
         """Load words from a Word document (.doc/.docx)."""
-        loaded = FileLoader.load_docx(percorso)
-        self._apply_loaded_text(loaded)
-        return self.lista_parole
-
-    def _apply_loaded_text(self, loaded: LoadedText) -> None:
-        """Apply loaded text data to app state."""
-        self.lista_parole = loaded.words
-        self.word_to_phrase_map = loaded.word_to_phrase_map
-        self.phrases_list = loaded.phrases_list
-        self.phrases_total = loaded.phrases_total
-
-        if self.lista_parole:
-            self.set_word_index(0)
-        else:
-            self.indice_parola = 0
-            self.parola_corrente = ""
-            self.parola_mascherata = ""
-            self.phrases_index = 0
+        return self.words.load_docx(percorso)
 
     def load_music(self, path: str) -> None:
         """Load and start background music."""
-        pygame.mixer.music.load(path)
-        pygame.mixer.music.set_volume(config.music.volume)
-        loops = -1 if config.music.loop else 0
-        pygame.mixer.music.play(loops=loops)
-        self.background_music = path
-
+        self.music.load_and_play(path)
 
     def reset(self) -> None:
         """Reset game to initial state."""
-        self.stato_presentazione = State.FILE
-        self.file_caricato = False
-        self.nome_file = None
-        self.num_parole = None
-        self.lista_parole = []
-        self.indice_parola = 0
-        self.parola_corrente = ""
-        self.parola_mascherata = ""
-        self.phrases_list = []
-        self.phrases_index = 0
-        self.phrases_total = 0
-        self.word_to_phrase_map = []
+        self.stato_presentazione = State.FORM
+        self.words.reset()
         self.in_pausa = False
         self.mostra_errore = False
+        self.context.new_session()
+        self.controller = SessionController(self.context)
 
     # ========================================================================
     # ASSETS
@@ -394,95 +402,7 @@ class Tachistostory:
 
     def load_assets(self) -> None:
         """Load all application assets with error handling."""
-        print("[LOADING] Caricamento asset...")
-
-        # Logo
-        try:
-            self.logo_image = load_image_asset(config.paths.logo_title)
-            self.logo_image.set_colorkey((0, 0, 0))
-            print("  ✓ Logo principale caricato")
-        except Exception as e:
-            print(f"  ⚠ Logo principale non trovato: {e}")
-            self.logo_image = None
-
-        # Background menu
-        try:
-            self._bg_menu_original = load_image_asset(config.paths.bg_menu_table_book)
-            self.bg_menu = scale_image_cover(
-                self._bg_menu_original, self.screen_width, self.screen_height
-            )
-            print("  ✓ Background menu caricato")
-        except Exception as e:
-            print(f"  ⚠ Background menu non trovato: {e}")
-            self.bg_menu = self._create_placeholder((self.screen_width, self.screen_height), (50, 50, 100))
-
-        # Background table
-        try:
-            self._bg_tavolo_original = load_image_asset(config.paths.bg_menu_table)
-            self.bg_tavolo = scale_image_cover(
-                self._bg_tavolo_original, self.screen_width, self.screen_height
-            )
-            print("  ✓ Background tavolo caricato")
-        except Exception as e:
-            print(f"  ⚠ Background tavolo non trovato: {e}")
-            self.bg_tavolo = self.bg_menu
-            if hasattr(self, "_bg_menu_original"):
-                self._bg_tavolo_original = self._bg_menu_original
-
-        # Background istructions
-        try:
-            self._bg_istructions_original = load_image_asset(config.paths.bg_istructions)
-            self.bg_istructions = scale_image_cover(
-                self._bg_istructions_original, self.screen_width, self.screen_height
-            )
-            print("  ✓ Background istruzioni caricato")
-        except Exception as e:
-            print(f"  ⚠ Background istruzioni non trovato: {e}")
-            self.bg_istructions = self.bg_menu
-            if hasattr(self, "_bg_menu_original"):
-                self._bg_istructions_original = self._bg_menu_original
-
-        # Book sprite sheet
-        try:
-            book_sheet = load_image_asset(config.paths.book_master_sheet)
-            self.book_frames = extract_sprite_frames(book_sheet, layout="horizontal")
-            for frame in self.book_frames:
-                frame.set_colorkey((0, 0, 0))
-            self.sprite_libro_chiuso = self.book_frames[0]
-            self._scale_book_frames()
-            print(f"  ✓ Sprite libro caricato ({len(self.book_frames)} frame)")
-        except Exception as e:
-            print(f"  ⚠ Sprite libro non trovato: {e}")
-            placeholder = self._create_placeholder((640, 640), (139, 69, 19))
-            self.book_frames = [placeholder] * 17
-            self.sprite_libro_chiuso = placeholder
-            self._scale_book_frames()
-
-        # Book open background
-        try:
-            book_open = load_image_asset(config.paths.book_open_bg)
-            self._book_open_original = book_open if not self.book_frames else self.book_frames[-1]
-            self.book_open_bg = scale_image_cover(
-                self._book_open_original, self.screen_width, self.screen_height
-            )
-            print("  ✓ Background libro aperto caricato")
-        except Exception as e:
-            print(f"  ⚠ Background libro aperto non trovato: {e}")
-            self.book_open_bg = self._create_placeholder(
-                (self.screen_width, self.screen_height), (255, 248, 220)
-            )
-
-        print("[LOADING] Caricamento asset completato\n")
-
-    def _create_placeholder(
-        self, size: Tuple[int, int], color: Tuple[int, int, int]
-    ) -> pygame.Surface:
-        """Create a colored placeholder surface when asset is missing."""
-        surface = pygame.Surface(size)
-        surface.fill(color)
-        pygame.draw.line(surface, (255, 0, 0), (0, 0), size, 3)
-        pygame.draw.line(surface, (255, 0, 0), (0, size[1]), (size[0], 0), 3)
-        return surface.convert()
+        self.assets.load_all(self.window.width, self.window.height)
 
     # ========================================================================
     # FILE DROP HANDLING
@@ -502,12 +422,13 @@ class Tachistostory:
                 return
 
             if words:
-                self.nome_file = os.path.splitext(os.path.basename(file_low))[0]
-                self.file_caricato = True
-                self.num_parole = len(self.lista_parole)
+                self.words.file_name = os.path.splitext(os.path.basename(file_low))[0]
+                self.words.file_loaded = True
+                # Store file metadata in session
+                from pathlib import Path
+                self.controller.set_file_selected(Path(file_path))
                 if self.state_machine:
                     self.state_machine.change_state("instruction")
-                # Layout is now updated automatically in state_machine._change_state_immediate
             else:
                 self._show_error(Error.EMPTY, "")
 
@@ -528,59 +449,41 @@ class Tachistostory:
 
     def handle_global_events(self, events: list[pygame.event.Event]) -> None:
         """Handle global events (quit, file drop, resize, fullscreen, etc.)."""
-        for event in events:
-            current_state = (
-                self.state_machine.get_current_state_name() if self.state_machine else None
-            )
+        # Check if we're in a state that should block global keyboard shortcuts
+        in_form = (
+            self.state_machine is not None
+            and self.state_machine.get_current_state_name() == "participant_form"
+        )
 
+        for event in events:
             # Quit
             if event.type == pygame.QUIT:
                 if self.state_machine:
                     self.state_machine.quit()
 
-            # File drop
-            elif event.type == pygame.DROPFILE:
+            # File drop (also blocked in form - form handles its own flow)
+            elif event.type == pygame.DROPFILE and not in_form:
                 file_path = os.path.abspath(event.file)
                 self._handle_dropfile(file_path)
 
-            # Keyboard
-            elif event.type == pygame.KEYDOWN:
-                # Iconify
+            # Keyboard (blocked in form to avoid conflicts with text input)
+            elif event.type == pygame.KEYDOWN and not in_form:
                 if event.key == pygame.K_i:
                     self.iconifize()
-                # Reset game
                 elif event.key == pygame.K_e:
                     self.reset()
                     if self.state_machine:
-                        self.state_machine.change_state("file_selection")
+                        self.state_machine.change_state("participant_form")
 
             # Window resize
             elif event.type == pygame.VIDEORESIZE:
-                self.screen_width = max(event.w, self.min_width)
-                self.screen_height = max(event.h, self.min_height)
-                self.screen = pygame.display.set_mode(
-                    (self.screen_width, self.screen_height), RESIZABLE
-                )
-                if self.state_machine:
-                    self.state_machine.screen = self.screen
+                self.window.handle_resize(event.w, event.h)
                 self.aggiorna_layout()
             
-            # Also handle WINDOWRESIZED for better compatibility
             elif event.type == pygame.WINDOWRESIZED:
-                self.screen = pygame.display.get_surface()
-                if self.screen:
-                    new_w, new_h = self.screen.get_size()
-                    # Enforce minimum size
-                    if new_w < self.min_width or new_h < self.min_height:
-                        self.screen_width = max(new_w, self.min_width)
-                        self.screen_height = max(new_h, self.min_height)
-                        self.screen = pygame.display.set_mode(
-                            (self.screen_width, self.screen_height), RESIZABLE
-                        )
-                    else:
-                        self.screen_width, self.screen_height = new_w, new_h
-                    if self.state_machine:
-                        self.state_machine.screen = self.screen
+                if self.window.screen:
+                    new_w, new_h = self.window.screen.get_size()
+                    self.window.handle_resize(new_w, new_h)
                     self.aggiorna_layout()
 
     def _render_error_overlay(self, clock: pygame.time.Clock) -> bool:
@@ -590,7 +493,7 @@ class Tachistostory:
 
         elapsed = pygame.time.get_ticks() - self.tempo_errore
         if elapsed < 5000:
-            win_w, win_h = self.screen.get_size()
+            win_w, win_h = self.window.size
 
             if self.tipo_errore == Error.EMPTY:
                 msg = "Document not readable or empty. Please try again"
@@ -604,12 +507,11 @@ class Tachistostory:
             text_surf = self.font_attes.render(msg, True, self.error_color)
             text_surf.set_colorkey(self.color_key)
             text_rect = text_surf.get_rect(centerx=win_w // 2, bottom=win_h - win_h // 3)
-            self.screen.blit(text_surf, text_rect)
+            self.window.screen.blit(text_surf, text_rect)
             return True
 
         self.mostra_errore = False
         return False
-
 
     # ========================================================================
     # MUSIC
@@ -617,28 +519,14 @@ class Tachistostory:
 
     def music_exe(self):
         """Load and execute music."""
-        try:
-            self.load_music(config.music.background_music)
-        except Exception as e:
-            print(f"⚠ Errore caricamento musica: {e}")
+        self.music.play_default()
     
     def music_fade_out(self, fade_duration_ms: int = 1000) -> None:
         """Fade out on instruction or presentation state."""
-        try:
-            if not self.state_machine:
-                return
-            
-            current_state = self.state_machine.get_current_state_name()
-            allowed_states = ("instruction", "presentation")
-            
-            if current_state not in allowed_states:
-                return
-            
-            if pygame.mixer.music.get_busy():
-                pygame.mixer.music.fadeout(fade_duration_ms)
-                
-        except Exception as e:
-            print(f'⚠ Error fade music: {e}')
+        self.music.fade_out_if_in_state(
+            allowed_states=("instruction", "presentation"),
+            duration_ms=fade_duration_ms
+        )
 
     # ========================================================================
     # STATE TRANSITION FADE
@@ -646,44 +534,15 @@ class Tachistostory:
 
     def request_state_change(self, name: str) -> bool:
         """Request a state change with fade transition. Returns True if handled."""
-        if not self.fade_enabled or self.fade_duration_ms <= 0:
-            return False
-        if self.fade_active:
-            self.fade_next_state = name
-            return True
-        self.fade_active = True
-        self.fade_direction = "out"
-        self.fade_alpha = 0.0
-        self.fade_next_state = name
-        return True
+        return self.fade.request_change(name)
 
     def _update_fade(self, delta_time: float) -> None:
         """Update fade alpha and switch states at full black."""
-        if not self.fade_active or self.fade_duration_ms <= 0:
-            return
-
-        step = 255 * (delta_time * 1000.0) / self.fade_duration_ms
-
-        if self.fade_direction == "out":
-            self.fade_alpha = min(255.0, self.fade_alpha + step)
-            if self.fade_alpha >= 255.0:
-                if self.state_machine and self.fade_next_state:
-                    self.state_machine._change_state_immediate(self.fade_next_state)
-                self.fade_direction = "in"
-        else:
-            self.fade_alpha = max(0.0, self.fade_alpha - step)
-            if self.fade_alpha <= 0.0:
-                self.fade_active = False
-                self.fade_next_state = None
+        self.fade.update(delta_time)
 
     def _render_fade_overlay(self, screen: pygame.Surface) -> None:
         """Render black fade overlay if active."""
-        if not self.fade_active:
-            return
-        overlay = pygame.Surface(screen.get_size())
-        overlay.fill((0, 0, 0))
-        overlay.set_alpha(int(self.fade_alpha))
-        screen.blit(overlay, (0, 0))
+        self.fade.render(screen)
 
     # ========================================================================
     # STATE MACHINE
@@ -693,23 +552,34 @@ class Tachistostory:
         """Create and configure the state machine."""
         from src.core.state_machine import StateMachine
         from src.states import (
+            CsvState,
             FileSelectionState,
             InstructionState,
             IntroBookOpenState,
             IntroBookIdleState,
             IntroTableState,
             MenuStartState,
+            ParticipantFormState,
             PresentationState,
         )
 
-        self.state_machine = StateMachine(self.screen, self)
+        self.state_machine = StateMachine(self.window.screen, self)
+        
+        # Connect managers to state machine
+        self.window.set_state_machine(self.state_machine)
+        self.music.set_state_machine(self.state_machine)
+        self.fade.set_state_machine(self.state_machine)
+        
+        # Register states
         self.state_machine.add_state("menu_start", MenuStartState(self.state_machine))
         self.state_machine.add_state("intro_table", IntroTableState(self.state_machine))
         self.state_machine.add_state("intro_book_open", IntroBookOpenState(self.state_machine))
         self.state_machine.add_state("intro_book_idle", IntroBookIdleState(self.state_machine))
         self.state_machine.add_state("file_selection", FileSelectionState(self.state_machine))
+        self.state_machine.add_state("participant_form", ParticipantFormState(self.state_machine, self.context))
         self.state_machine.add_state("instruction", InstructionState(self.state_machine))
         self.state_machine.add_state("presentation", PresentationState(self.state_machine))
+        self.state_machine.add_state("csv_export", CsvState(self.state_machine))
         self.state_machine.change_state("menu_start")
 
     # ========================================================================
@@ -720,9 +590,9 @@ class Tachistostory:
         """Initialize screen, assets, and state machine."""
         self.get_screen()
         self.caption_window()
-        self.font = pygame.font.Font(self.font_path, self.base_font)
+        self.layout.init_fonts(self.window.scale_factor)
         self.load_assets()
-        self.aggiorna_layout()  # Initialize slider and UI layout
+        self.aggiorna_layout()
         self._build_state_machine()
         self.music_exe()
 
@@ -742,15 +612,15 @@ class Tachistostory:
                 self.handle_global_events(events)
                 self.state_machine.handle_events(events)
 
-                # Check for size changes (handles cases where resize events are missed)
+                # Check for size changes
                 self.aggiorna_layout()
 
                 delta_time = clock.get_time() / 1000.0
                 self._update_fade(delta_time)
                 
                 if self._render_error_overlay(clock):
-                    if self.screen:
-                        self._render_fade_overlay(self.screen)
+                    if self.window.screen:
+                        self._render_fade_overlay(self.window.screen)
                     self.updating()
                     clock.tick(60)
                     continue
@@ -759,8 +629,8 @@ class Tachistostory:
                     
                 self.state_machine.update(delta_time)
                 self.state_machine.render()
-                if self.screen:
-                    self._render_fade_overlay(self.screen)
+                if self.window.screen:
+                    self._render_fade_overlay(self.window.screen)
                 self.updating()
                 clock.tick(60)
 

@@ -9,6 +9,8 @@ import pygame
 from src.core.config import config
 from src.core.enums import State
 from src.states.base_state import BaseState
+from src.logging.session_logger import StimulusType, ReasonState, ErrorType
+
 
 
 class PresentationState(BaseState):
@@ -20,17 +22,40 @@ class PresentationState(BaseState):
         self.state_start_time: int = 0
         # Slider state
         self.slider_dragging: bool = False
+        # Session tracking
+        self.session_started: bool = False
+        self.word_shown_at_ms: int = 0
+        self.current_logged_word: str = ""
+        self.end_start_time: int = 0
+        self.end_transition_requested: bool = False
 
     @property
     def app(self):
         return self.state_machine.app
 
     def on_enter(self) -> None:
+        # Reset to first word when entering presentation state
+        if self.app.lista_parole:
+            self.app.set_word_index(-1)
         self.app.stato_presentazione = State.SHOW_WORD
         self.state_start_time = pygame.time.get_ticks()
         self.app.in_pausa = False
         self.app.avanti = False
         self.slider_dragging = False
+        self.word_shown_at_ms = 0
+        self.current_logged_word = ""
+        self.end_start_time = 0
+        self.end_transition_requested = False
+
+        # Start a new logging session
+        self.session_started = False
+        try:
+            now_ms = pygame.time.get_ticks()
+            self.app.controller.start_session(now_ms)
+            self.session_started = True
+            print(f"  ✓ Session started: {self.app.context.session.session_id}")
+        except RuntimeError as e:
+            print(f"  ⚠ Session not started: {e}")
 
     def handle_events(self, events: list[pygame.event.Event]) -> None:
         for event in events:
@@ -58,16 +83,40 @@ class PresentationState(BaseState):
                 if event.key == pygame.K_p:
                     self.app.in_pausa = not self.app.in_pausa
                     self.state_start_time = pygame.time.get_ticks()
+                    # Log pause state change
+                    if self.session_started:
+                        now_ms = pygame.time.get_ticks()
+                        self.app.context.logger.set_in_pause(
+                            self.app.in_pausa, now_ms,
+                            reason=ReasonState.MANUAL_PAUSE
+                        )
                 elif event.key == pygame.K_SPACE:
                     self.app.avanti = True
                 elif event.key == pygame.K_r:
-                    self.app.set_word_index(0)
+                    self.app.set_word_index(-1)
                     self.app.stato_presentazione = State.SHOW_WORD
                     self.state_start_time = pygame.time.get_ticks()
                 elif event.key == pygame.K_RIGHT:
                     self.app.go()
                     self.state_start_time = pygame.time.get_ticks()
                 elif event.key == pygame.K_LEFT:
+                    # Log current word as error before going back
+                    if self.session_started and self.app.indice_parola >= 0:
+                        now_ms = pygame.time.get_ticks()
+                        current_word = self.app.parola_corrente or ""
+                        self.app.context.logger.log_word_event(
+                            stimulus_text=current_word,
+                            shown_at_ms=self.word_shown_at_ms if self.word_shown_at_ms > 0 else now_ms,
+                            hidden_at_ms=now_ms,
+                            stimulus_type=StimulusType.WORD,
+                            stimulus_source=self.app.nome_file or "",
+                            duration_ms=self.app.durata_parola_ms,
+                            word_level_speed=self.app.durata_parola_ms,
+                            game_state=self.app.stato_presentazione,
+                            is_correct=False,
+                            error_type=ErrorType.COMMISSION,
+                        )
+                        self.word_shown_at_ms = 0
                     self.app.back()
                     self.state_start_time = pygame.time.get_ticks()
 
@@ -137,9 +186,37 @@ class PresentationState(BaseState):
         elapsed = pygame.time.get_ticks() - self.state_start_time
 
         if self.app.stato_presentazione == State.SHOW_WORD:
-            if elapsed >= self.app.durata_parola_ms:
+            # Special case: if at initial state (-1) and user pressed SPACE, start immediately
+            if self.app.indice_parola < 0 and self.app.avanti:
+                self.app.set_word_index(0)
+                self.app.stato_presentazione = State.SHOW_WORD
+                self.state_start_time = pygame.time.get_ticks()
+                self.app.avanti = False
+                # Track word shown time
+                self.word_shown_at_ms = pygame.time.get_ticks()
+                self.current_logged_word = self.app.parola_corrente or ""
+            # Track word shown time when word first appears
+            elif self.app.indice_parola >= 0 and self.word_shown_at_ms == 0:
+                self.word_shown_at_ms = self.state_start_time
+                self.current_logged_word = self.app.parola_corrente or ""
+            # Normal case: auto-advance after duration
+            elif self.app.indice_parola >= 0 and elapsed >= self.app.durata_parola_ms:
+                # Log the word event when it gets hidden
+                if self.session_started and self.word_shown_at_ms > 0:
+                    now_ms = pygame.time.get_ticks()
+                    self.app.context.logger.log_word_event(
+                        stimulus_text=self.current_logged_word,
+                        shown_at_ms=self.word_shown_at_ms,
+                        hidden_at_ms=now_ms,
+                        stimulus_type=StimulusType.WORD,
+                        stimulus_source=self.app.nome_file or "",
+                        duration_ms=self.app.durata_parola_ms,
+                        word_level_speed=self.app.durata_parola_ms,
+                        game_state=self.app.stato_presentazione,
+                    )
                 self.app.stato_presentazione = State.SHOW_MASK
                 self.state_start_time = pygame.time.get_ticks()
+                self.word_shown_at_ms = 0
 
         elif self.app.stato_presentazione == State.SHOW_MASK:
             if elapsed >= self.app.durata_maschera_ms and self.app.avanti:
@@ -148,9 +225,28 @@ class PresentationState(BaseState):
                     self.app.set_word_index(next_index)
                     self.app.stato_presentazione = State.SHOW_WORD
                     self.state_start_time = pygame.time.get_ticks()
+                    # Track new word shown time
+                    self.word_shown_at_ms = pygame.time.get_ticks()
+                    self.current_logged_word = self.app.parola_corrente or ""
                 else:
                     self.app.stato_presentazione = State.END
+                    self.end_start_time = pygame.time.get_ticks()
+                    # End session (export will be handled by CsvState)
+                    self._end_session()
                 self.app.avanti = False
+
+    def _end_session(self) -> None:
+        """End the logging session (without exporting - CsvState handles that)."""
+        if not self.session_started:
+            return
+        try:
+            now_ms = pygame.time.get_ticks()
+            self.app.controller.end_session(now_ms)
+            print(f"  ✓ Session ended: {self.app.context.session.session_id}")
+        except Exception as e:
+            print(f"  ⚠ Session end failed: {e}")
+        finally:
+            self.session_started = False
 
     def render(self, screen: pygame.Surface) -> None:
         if self.app.in_pausa:
@@ -172,9 +268,14 @@ class PresentationState(BaseState):
 
         # Word display
         if self.app.stato_presentazione == State.SHOW_WORD:
-            self._render_centered_text(screen, self.app.parola_corrente)
+            # Show word only if index is valid (>= 0)
+            if self.app.indice_parola >= 0:
+                self._render_centered_text(screen, self.app.parola_corrente)
+            else:
+                self._render_centered_text(screen, "Press SPACE to start")
         elif self.app.stato_presentazione == State.SHOW_MASK:
-            self._render_centered_text(screen, self.app.parola_mascherata)
+            if self.app.indice_parola >= 0:
+                self._render_centered_text(screen, self.app.parola_mascherata)
         elif self.app.stato_presentazione == State.END:
             self._render_centered_text(screen, "End of list")
 
@@ -184,10 +285,22 @@ class PresentationState(BaseState):
             self._render_phrases_panel(screen)
         else:
             self._render_end_panel(screen)
+            # Auto-transition to csv_export after a short delay
+            if not self.end_transition_requested and self.end_start_time > 0:
+                elapsed_end = pygame.time.get_ticks() - self.end_start_time
+                if elapsed_end > 2000:
+                    self.end_transition_requested = True
+                    self.app.request_state_change("csv_export")
 
     def _render_pause(self, screen: pygame.Surface) -> None:
-        """Render pause overlay."""
-        screen.fill(self.app.menu_bg_color)
+        """Render pause overlay with instruction background."""
+        # Draw background (same as instruction state)
+        if self.app.bg_istructions:
+            screen.blit(self.app.bg_istructions, (0, 0))
+        else:
+            screen.fill(self.app.menu_bg_color)
+        
+        # Draw PAUSE text centered
         win_w, win_h = screen.get_size()
         pause_surf = self.app.font_pausa.render("PAUSE", True, self.app.text_color)
         pause_surf.set_colorkey(self.app.color_key)
@@ -264,8 +377,9 @@ class PresentationState(BaseState):
     def _render_word_panel(self, screen: pygame.Surface) -> None:
         """Render word count panel."""
         win_w, win_h = screen.get_size()
-        human_index = self.app.indice_parola + 1
-        total = len(self.app.lista_parole)
+        # Display as 1-based with total+1 (e.g., 1/11, 2/11, ..., 10/11 for 10 words)
+        human_index = max(0, self.app.indice_parola) + 1
+        total = len(self.app.lista_parole) + 1
         text_surf = self.app.font.render(f"Word: {human_index}/{total}", True, config.display.text_color)
         text_surf.set_colorkey(self.app.color_key)
         text_surf.set_alpha(230)

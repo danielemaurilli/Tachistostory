@@ -1,6 +1,8 @@
 """
 Session logger config
 """
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from enum import Enum
 import csv
@@ -137,7 +139,7 @@ def pseudonym_int_hmac(participant_code:str,
     """Return a stable, non-reversible pseudonym int derived from a participant_code
     
     
-        - Deterministic: same code + same key -> same pseydonym
+        - Deterministic: same code + same key -> same pseudonym
         - Non-reversible: cannot recover the code from the pseudonym
         - bits = 63 fits safely in signed BIGINT
         
@@ -150,10 +152,11 @@ def pseudonym_int_hmac(participant_code:str,
     return n & ((1 << bits) - 1)
 
 @dataclass
+@dataclass
 class DisplayNameRegistry:
     """Stores an optional mapping: pseudonym_int -> display_name.
     
-        Use for UI/report labeling only. Avoid personale identifiers in display_name.
+        Use for UI/report labeling only. Avoid personal identifiers in display_name.
     """
     
     path: Path = DEFAULT_DISPLAY_NAMES_PATH
@@ -180,9 +183,9 @@ class DisplayNameRegistry:
         mapping = self.load()
         return mapping.get(str(int(pseudonym_int)))
     
-    def delete_name(self, psudonym_int:int) -> None:
+    def delete_name(self, pseudonym_int: int) -> None:
         mapping = self.load()
-        key = str(int(psudonym_int))
+        key = str(int(pseudonym_int))
         if key in mapping:
             del mapping[key]
             self.save(mapping)
@@ -268,7 +271,7 @@ class SessionData:
     total_active_ms: int = 0
     accuracy: str = ''
     
-    def setter(self, file_path: Path, assets_root: Path | None = None) -> None:
+    def set_input_file(self, file_path: Path, assets_root: Path | None = None) -> None:
         self.input_file_name = file_path.name
         self.input_file_size_bytes = file_path.stat().st_size
 
@@ -300,20 +303,28 @@ class SessionData:
         
         return sum(durations) / len(durations)
        
-    def accuracy_calc(self, press_space: int, press_back: int, total_words: int) -> str:
-        if total_words <= 0:
+    def compute_accuracy(self) -> str:
+        """Compute accuracy based on actual trials and commission errors.
+
+        Formula: accuracy = (trials - commission_errors) / trials * 100
+
+        trials = word presentations only (events where is_correct is not False).
+        commission_errors = events logged with is_correct=False
+        (e.g. when the user presses the back arrow).
+        Each error corresponds to a trial marked as wrong.
+        """
+        commission_errors = sum(
+            1 for e in self.word_events if e.is_correct is False
+        )
+        trials = len(self.word_events) - commission_errors
+
+        if trials <= 0:
             return "0%"
 
-        correct = press_space
-        wrong = press_back
-        score = (correct - wrong) / total_words * 100
-
-        # limita tra 0 e 100
+        correct = trials - commission_errors
+        score = (correct / trials) * 100
         score = max(0.0, min(100.0, score))
-
         return f"{score:.1f}%"
-        
-        
 
     def attach_participant(
         self,
@@ -330,6 +341,30 @@ class SessionData:
         if display_name is not None:
             self.participant_display_name = display_name
             (names_registry or DisplayNameRegistry()).set_name(self.participant_pseudonym, display_name)
+        else:
+            # Try to load a previously stored label, if any
+            self.participant_display_name = (names_registry or DisplayNameRegistry()).get_name(self.participant_pseudonym)
+
+
+    def attach_existing_participant(
+        self,
+        participant_pseudonym: int,
+        display_name: Optional[str] = None,
+        names_registry: Optional[DisplayNameRegistry] = None,
+    ) -> None:
+        """Attach an already-known participant to this session.
+
+        Use this when the admin selects an existing participant from the DisplayNameRegistry.
+
+        Privacy:
+        - does NOT require or store participant_code_raw
+        - sets participant_code_raw to None
+        """
+        self.participant_code_raw = None
+        self.participant_pseudonym = int(participant_pseudonym)
+
+        if display_name is not None:
+            self.participant_display_name = display_name
         else:
             # Try to load a previously stored label, if any
             self.participant_display_name = (names_registry or DisplayNameRegistry()).get_name(self.participant_pseudonym)
@@ -423,25 +458,34 @@ def export_session_summary_csv(
     pause_events = pause_events or []
 
     total_trials = len(word_events)
-    total_correct = sum(1 for e in word_events if e.is_correct is True)
-    total_wrong = sum(1 for e in word_events if e.is_correct is False)
-    mean_rt = (
-        sum(e.response_time_ms for e in word_events if e.response_time_ms is not None) /
-        max(1, sum(1 for e in word_events if e.response_time_ms is not None))
+    total_pause_ms = sum((p.duration_ms() or 0) for p in pause_events)
+
+    # Compute mean actual duration (the real exposure time per word)
+    actual_durations = [e.actual_duration_ms for e in word_events if e.actual_duration_ms is not None]
+    mean_actual_duration_ms = (
+        round(sum(actual_durations) / len(actual_durations), 2)
+        if actual_durations else 0.0
     )
 
-    total_pause_ms = sum((p.duration_ms() or 0) for p in pause_events)
+    # Response-based metrics (only meaningful if is_correct was set)
+    total_correct = sum(1 for e in word_events if e.is_correct is True)
+    total_wrong = sum(1 for e in word_events if e.is_correct is False)
+    rt_values = [e.response_time_ms for e in word_events if e.response_time_ms is not None]
+    mean_rt = round(sum(rt_values) / len(rt_values), 2) if rt_values else ""
 
     row = {
         "session_id": str(session.session_id) if session.session_id else "",
         "participant_pseudonym": int(session.participant_pseudonym) if session.participant_pseudonym is not None else "",
         "participant_display_name": session.participant_display_name or "",
         "total_trials": total_trials,
-        "total_correct": total_correct,
-        "total_wrong": total_wrong,
-        "mean_response_time_ms": round(mean_rt, 2) if mean_rt is not None else "",
+        "mean_actual_duration_ms": mean_actual_duration_ms,
+        "total_active_ms": session.total_active_ms,
         "total_pause_ms": total_pause_ms,
         "num_pauses": len(pause_events),
+        "accuracy": session.accuracy or "",
+        "total_correct": total_correct if total_correct > 0 else "",
+        "total_wrong": total_wrong if total_wrong > 0 else "",
+        "mean_response_time_ms": mean_rt,
     }
 
     with path.open("w", newline="", encoding="utf-8") as f:
@@ -453,7 +497,7 @@ def export_session_summary_csv(
 
 
 @dataclass
-class SessionLogger():
+class SessionLogger:
     session: SessionData
     _pause_start_ms: Optional[int] = None
     _pause_reason: Optional[ReasonState] = None
@@ -566,8 +610,7 @@ class SessionLogger():
 
         - Closes an open pause (if any)
         - Sets ended_at_ms
-        - Computes total_words, total_paused_ms, total_active_ms
-        - Computes accuracy from is_correct when available
+        - Computes total_words, total_paused_ms, total_active_ms, accuracy
         """
         # Require an active session
         if self.session.session_id is None:
@@ -593,21 +636,8 @@ class SessionLogger():
         active_ms = total_session_ms - self.session.total_paused_ms
         self.session.total_active_ms = active_ms if active_ms > 0 else 0
 
-        # accuracy: prefer per-event correctness when present
-        attempted = 0
-        correct = 0
-        for e in self.session.word_events:
-            if e.is_correct is True:
-                attempted += 1
-                correct += 1
-            elif e.is_correct is False:
-                attempted += 1
-
-        if attempted > 0:
-            score = (correct / attempted) * 100
-            self.session.accuracy = f"{score:.1f}%"
-        else:
-            self.session.accuracy = "0%"
+        # accuracy (uses compute_accuracy from SessionData)
+        self.session.accuracy = self.session.compute_accuracy()
 
     def export_csv(self, output_dir: Path | str, include_display_name: bool = True) -> tuple[Path, Path, Path]:
         """Export current session logs to CSV files.

@@ -29,7 +29,7 @@ class IntroBookOpenState(BaseState):
         for event in events:
             if event.type == pygame.KEYDOWN:
                 if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
-                    self.state_machine.change_state("intro_book_idle")
+                    self.state_machine.change_state("participant_form")
 
     def update(self, delta_time: float) -> None:
         # Auto-transition after animation completes (with small delay)
@@ -37,7 +37,7 @@ class IntroBookOpenState(BaseState):
             elapsed_since_complete = pygame.time.get_ticks() - self.animation_start
             total_duration = len(self.app.book_frames) * config.timing.book_frame_duration + 500
             if elapsed_since_complete > total_duration:
-                self.state_machine.change_state("intro_book_idle")
+                self.state_machine.change_state("participant_form")
 
     def render(self, screen: pygame.Surface) -> None:
         """Render book opening animation."""

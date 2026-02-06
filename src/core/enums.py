@@ -20,6 +20,7 @@ class State(Enum):
     TRANSITION = auto()
     FILE = auto()
     ISTRUCTION = auto()
+    FORM = auto()
     SHOW_WORD = auto()
     SHOW_MASK = auto()
     END = auto()

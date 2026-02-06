@@ -74,7 +74,7 @@ def test_session_data_setter_sets_hash_and_origin(tmp_path: Path) -> None:
     file_path.write_bytes(content)
 
     session = SessionData()
-    session.setter(file_path, assets_root=assets_root)
+    session.set_input_file(file_path, assets_root=assets_root)
 
     assert session.input_file_name == "text.txt"
     assert session.input_file_size_bytes == len(content)
@@ -90,7 +90,7 @@ def test_session_data_setter_external_drop(tmp_path: Path) -> None:
     file_path.write_text("x", encoding="utf-8")
 
     session = SessionData()
-    session.setter(file_path, assets_root=assets_root)
+    session.set_input_file(file_path, assets_root=assets_root)
 
     assert session.input_file_origin == "external_drop"
     assert session.input_file_relpath == ""
