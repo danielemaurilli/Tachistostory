@@ -42,6 +42,10 @@ pip install -r requirements.txt
 python main.py
 ```
 
+## Download
+
+E possibile scaricare Tachistostory direttamente dalla sezione **GitHub Releases**, dove sono disponibili tutte le versioni pubblicate.
+
 ## Riferimenti Scientifici (selezione)
 
 - Rayner, K. (1998). *Eye movements in reading and information processing: 20 years of research.* Psychological Bulletin, 124(3), 372-422. https://doi.org/10.1037/0033-2909.124.3.372
