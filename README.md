@@ -2,8 +2,26 @@
 
 [Italian version](README.it.md)
 
+<p align="center">
+  <img src="assets/logo/tachistostory_title.png" alt="Tachistostory title" width="360" />
+
+
 Tachistostory is a tachistoscopic reading-training app designed to support reading fluency through brief visual exposure, controlled pacing, and rapid-but-accurate responses.
 The idea also has a specific goal: presenting a verbal-comprehension text through tachistoscopic reading and then asking the child comprehension questions at the end.
+
+## Screenshots
+
+<p align="center">
+  <img src="assets/screenshots/Screenshot%202026-03-01%20alle%2016.30.12.png" alt="Tachistostory screenshot 1" width="360" />
+  <img src="assets/screenshots/Screenshot%202026-03-01%20alle%2016.30.22.png" alt="Tachistostory screenshot 2" width="360" />
+  <img src="assets/screenshots/Screenshot%202026-03-01%20alle%2016.30.24.png" alt="Tachistostory screenshot 3" width="360" />
+  <img src="assets/screenshots/Screenshot%202026-03-01%20alle%2016.30.38.png" alt="Tachistostory screenshot 4" width="360" />
+  <img src="assets/screenshots/Screenshot%202026-03-01%20alle%2016.30.57.png" alt="Tachistostory screenshot 5" width="360" />
+  <img src="assets/screenshots/Screenshot%202026-03-01%20alle%2016.31.13.png" alt="Tachistostory screenshot 6" width="360" />
+  <img src="assets/screenshots/Screenshot%202026-03-01%20alle%2016.31.40.png" alt="Tachistostory screenshot 7" width="360" />
+  <img src="assets/screenshots/Screenshot%202026-03-01%20alle%2016.31.58.png" alt="Tachistostory screenshot 8" width="360" />
+  <img src="assets/screenshots/Screenshot%202026-03-01%20alle%2016.32.06.png" alt="Tachistostory screenshot 9" width="360" />
+</p>
 
 ## Project Overview
 
